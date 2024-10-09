@@ -48,10 +48,10 @@ class PowerNetwork:
         voltage_levels = ""
         loads_levels = ""
         for i in range(self.model.res_bus.shape[0]):
-            voltage_levels += f"| Bus {i}: {self.model.res_bus.at[i, "vm_pu"]:.4f} "
+            voltage_levels += f"| Bus {i}: {self.model.res_bus.at[i, 'vm_pu']:.4f} "
         for i in range(self.model.res_load.shape[0]):
-            loads_levels += f"| Load {i}: {self.model.res_load.at[i, "p_mw"]:} "
-        return str(timestamp) + " || Vm [pu] " + voltage_levels + " || Power [MW] " + loads_levels + " ||"
+            loads_levels += f"| Load {i}: {self.model.res_load.at[i, 'p_mw']:} "
+        return f"{str(timestamp)} || Vm [pu] {voltage_levels} || Power [MW] {loads_levels} ||"
     
     
     def get_values_for_sending(self) -> dict:
@@ -90,8 +90,8 @@ def get_voltage_level_handler(net):
                 net.open_switch()
                 
                 print("**************************************")
-                print(f"Voltage level too low! {voltage_data["vm_pu"]:.4f} pu")
-                print(f"Activating circuit breaker at {voltage_data["timestamp"]}.")
+                print(f"Voltage level too low! {voltage_data['vm_pu']:.4f} pu")
+                print(f"Activating circuit breaker at {voltage_data['timestamp']}.")
                 print("**************************************")
     
     return VoltageLevelHandler

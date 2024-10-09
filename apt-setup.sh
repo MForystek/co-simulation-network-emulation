@@ -1,3 +1,3 @@
 #!/bin/bash
 
-sudo apt install python3-venv git ansible postgresql libpq-dev
+sudo apt install gcc cmake python3-venv python3-dev git ansible postgresql libpq-dev
