@@ -3,10 +3,10 @@ import threading
 import pandas as pd
 import pandapower as pp
 import asyncio
-import mylogging
 
-from power_network import PowerNetwork
-from modbus_server import ModbusServer
+from cosim import mylogging
+from cosim.power_network import PowerNetwork
+from cosim.modbus.modbus_server import ModbusServer
 
 
 logger = mylogging.getLogger("pow_sim", "logs/pow_sim.log")
@@ -28,7 +28,7 @@ def simulate_step(pnet: PowerNetwork, voltage_sensor: ModbusServer, action, *arg
     logger.info(pnet.get_values_for_printing())
     
     # Update Modbus voltage sensor
-    # Useing milli pu to avoid floats
+    # Using milli pu to avoid floats
     voltages_in_milli_pu = [int(voltage * 1000) for voltage in pnet.get_voltage_levels()]
     voltage_sensor.update_voltages(voltages_in_milli_pu)
     
@@ -42,7 +42,7 @@ def simulate_step(pnet: PowerNetwork, voltage_sensor: ModbusServer, action, *arg
 ###################################################################
 
 
-if __name__ == "__main__":
+def main():
     pd.set_option('display.width', None)
     
     logger.info("--------------------------------------")
@@ -70,5 +70,8 @@ if __name__ == "__main__":
         
         if not pnet.is_switch_closed(): 
             break
-        
         time.sleep(0.1)
+        
+    
+if __name__ == "__main__":
+    main()

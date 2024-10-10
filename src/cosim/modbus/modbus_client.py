@@ -3,6 +3,7 @@ import asyncio
 from pymodbus.client import AsyncModbusTcpClient
 from pymodbus.exceptions import ModbusException
 
+
 async def run_async_client(host, port, logger, modbus_calls=None, **kwargs):
     while True:
         try:

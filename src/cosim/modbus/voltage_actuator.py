@@ -1,16 +1,16 @@
 import sys
 import asyncio
-import datetime
 import threading
-import mylogging
 
 from pymodbus.client import AsyncModbusTcpClient
 from pymodbus import ModbusException
-from modbus_server import ModbusServer
-from modbus_client import run_async_client    
+
+from cosim import mylogging
+from cosim.modbus.modbus_server import ModbusServer
+from cosim.modbus.modbus_client import run_async_client    
 
 
-logger = mylogging.getLogger(__name__, "/app/logs/actuator.log")
+logger = mylogging.getLogger(__name__, "logs/actuator.log")
 
 
 async def forward_circuit_breaker_command(client: AsyncModbusTcpClient, modbus_server: ModbusServer):
@@ -22,7 +22,7 @@ async def forward_circuit_breaker_command(client: AsyncModbusTcpClient, modbus_s
             
             if circuit_breaker_value == True:
                 logger.info("**************************************")
-                logger.info(f"Activating circuit breaker at {datetime.datetime.now()}")
+                logger.info("Activating circuit breaker")
                 logger.info("**************************************")
                 
                 start_address = 0

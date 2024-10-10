@@ -1,15 +1,17 @@
 import sys
 import asyncio
 import threading
-import mylogging
 
 from pymodbus.client import AsyncModbusTcpClient
 from pymodbus import ModbusException
-from modbus_server import ModbusServer
-from modbus_client import run_async_client    
 
 
-logger = mylogging.getLogger(__name__, "/app/logs/sensor.log")
+from cosim import mylogging
+from cosim.modbus.modbus_server import ModbusServer
+from cosim.modbus.modbus_client import run_async_client    
+
+
+logger = mylogging.getLogger(__name__, "logs/sensor.log")
 
 
 async def forward_voltage_level_in_milli_pu(client: AsyncModbusTcpClient, modbus_server: ModbusServer):

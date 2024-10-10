@@ -1,14 +1,14 @@
 import sys
 import asyncio
-import datetime
-import mylogging
 
 from pymodbus.client import AsyncModbusTcpClient
 from pymodbus import ModbusException
-from modbus_client import run_async_client    
+
+from cosim import mylogging
+from cosim.modbus.modbus_client import run_async_client    
 
 
-logger = mylogging.getLogger(__name__, "/app/logs/manager.log")
+logger = mylogging.getLogger(__name__, "logs/manager.log")
 
 
 async def read_voltage_level_in_milli_pu(client: AsyncModbusTcpClient, to_host, to_port):
@@ -27,7 +27,7 @@ async def read_voltage_level_in_milli_pu(client: AsyncModbusTcpClient, to_host, 
                 if register < 950 and register != 0:
                     logger.info("**************************************")
                     logger.info(f"Voltage level too low at bus {i}: {register/1000:.3f} pu")
-                    logger.info(f"Activating circuit breaker at {datetime.datetime.now()}")
+                    logger.info("Sending open circuit breaker command")
                     logger.info("**************************************")
                     await run_async_client(to_host, to_port, logger=logger,
                                            modbus_calls=send_open_circuit_breaker_signal)
