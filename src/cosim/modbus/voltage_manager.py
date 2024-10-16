@@ -19,7 +19,7 @@ async def read_voltage_level_in_milli_pu(client: AsyncModbusTcpClient, to_host, 
             response = await client.read_holding_registers(start_address, how_many)
             if response.isError():
                 logger.warning("Reading holding registers from sensor unsuccessful")
-            if len(response.registers) != 2:
+            if len(response.registers) != how_many:
                 logger.warning(f"Read {len(response.registers)} registers, expected {how_many}")
             logger.info(f"Voltage 0: {response.registers[0]/1000:.3f}, Voltage 1: {response.registers[1]/1000:.3f}")
             
