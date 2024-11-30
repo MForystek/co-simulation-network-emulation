@@ -7,7 +7,7 @@ from mininet.link import TCLink
 from mininet.log import info, setLogLevel
 
 
-def main():
+def main(args):
     setLogLevel('info')
 
     net = Containernet()
@@ -30,9 +30,9 @@ def main():
     s2 = net.addSwitch('s2', cls=OVSSwitch, failMode="standalone")
 
     #Links
-    net.addLink(d1, s1)
-    net.addLink(d2, s2)
-    net.addLink(s1, s2, cls=TCLink, delay="500ms", bw=0.1)
+    net.addLink(d1, s1, cls=TCLink, delay=args.delay, bw=args.bandwidth)
+    net.addLink(d2, s2, cls=TCLink, delay=args.delay, bw=args.bandwidth)
+    net.addLink(s1, s2, cls=TCLink, delay=args.delay, bw=args.bandwidth)
 
     net.start()
     net.ping([d1, d2])

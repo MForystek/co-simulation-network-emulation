@@ -4,7 +4,7 @@ from cosim.utils import parse_arguments
 args = parse_arguments()
 
 if args.power not in ["pp", "pandapower"]:
-    raise ValueError(f"Currently the only software simulation supported is PandaPower, but user wanted {args.power}.")
+    raise ValueError(f"Supported power simulation software is PandaPower, wanted {args.power}.")
 
 if args.network in ["j", "json"]:
     from cosim.json.power import main as json_main

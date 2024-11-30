@@ -7,7 +7,7 @@ from mininet.link import TCLink
 from mininet.log import info, setLogLevel
 
 
-def main():
+def main(args):
     setLogLevel('info')
 
     net = Containernet() 
@@ -30,9 +30,9 @@ def main():
     s1 = net.addSwitch("s1", cls=OVSSwitch, failMode="standalone")
 
     # Links
-    net.addLink(sensor, s1)
-    net.addLink(manager, s1, cls=TCLink, delay="250ms", bw=0.1)
-    net.addLink(actuator, s1)
+    net.addLink(sensor, s1, cls=TCLink, delay=args.delay, bw=args.bandwidth)
+    net.addLink(manager, s1, cls=TCLink, delay=args.delay, bw=args.bandwidth)
+    net.addLink(actuator, s1, cls=TCLink, delay=args.delay, bw=args.bandwidth)
 
     # Run modbus scripts
     info(sensor.cmd("python3.10 -m cosim.modbus.voltage_sensor 0.0.0.0 5001 172.17.0.1 5000 &"))
