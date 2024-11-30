@@ -11,7 +11,7 @@ from cosim.modbus_rtds.modbus_server import ModbusServer
 from cosim.modbus_rtds.modbus_client import run_async_client    
 
 
-logger = mylogging.getLogger(__name__, "logs/actuator.log")
+logger = mylogging.getLogger(__name__, "logs/m_r_actuator.log")
 
 
 async def forward_circuit_breaker_command(client: AsyncModbusTcpClient, modbus_server: ModbusServer):
@@ -28,17 +28,21 @@ async def forward_circuit_breaker_command(client: AsyncModbusTcpClient, modbus_s
    
 async def control_circuit_breaker(client: AsyncModbusTcpClient, circuit_breaker_value: bool,
                                   start_address: int):
-    if circuit_breaker_value:
-        logger.info("Opening circuit breaker")
-    else:
-        logger.info("Closing circuit breaker")
+    if not hasattr(control_circuit_breaker, "previous_value"):
+        control_circuit_breaker.previous_value = 1
+    
+    # 0 - circuit breaker opened, 1 - circuit breaker closed
+    if control_circuit_breaker.previous_value != circuit_breaker_value:
+        control_circuit_breaker.previous_value = circuit_breaker_value 
+        if circuit_breaker_value:
+            logger.info("Opening circuit breaker")
+        else:
+            logger.info("Closing circuit breaker")
         
-    new_value = not circuit_breaker_value
-    response = await client.write_coil(start_address, new_value)
-    if response.isError():
-        logger.warning("Writing to coil unsuccessful")
-    if len(response.bits) != 8:
-        logger.warning(f"Got {len(response.bits)} bits, expected {8}")        
+        new_value = not circuit_breaker_value
+        response = await client.write_coil(start_address, new_value)
+        if response.isError():
+            logger.warning("Writing to coil unsuccessful")  
      
     
 if __name__ == "__main__":

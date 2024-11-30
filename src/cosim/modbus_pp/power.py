@@ -6,10 +6,10 @@ import asyncio
 
 from cosim import mylogging
 from cosim.power_network import PowerNetwork
-from cosim.modbus.modbus_server import ModbusServer
+from cosim.modbus_pp.modbus_server import ModbusServer
 
 
-logger = mylogging.getLogger("pow_sim", "logs/pow_sim.log")
+logger = mylogging.getLogger("pow_sim", "logs/m_pp_pow_sim.log")
 
 
 def increase_load_by(pnet: PowerNetwork, add_load, load_id) -> PowerNetwork:

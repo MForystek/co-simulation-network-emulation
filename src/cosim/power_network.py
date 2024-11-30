@@ -4,7 +4,7 @@ import pandapower as pp
 
 class PowerNetwork:
     def __init__(self):        
-        self.model = pp.create_empty_network()
+        self.model = pp.create_empty_network(f_hz=60)
         self._define_power_network()
         
 

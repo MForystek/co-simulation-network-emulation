@@ -6,11 +6,11 @@ from pymodbus.client import AsyncModbusTcpClient
 from pymodbus import ModbusException
 
 from cosim import mylogging
-from cosim.modbus.modbus_server import ModbusServer
-from cosim.modbus.modbus_client import run_async_client    
+from cosim.modbus_pp.modbus_server import ModbusServer
+from cosim.modbus_pp.modbus_client import run_async_client    
 
 
-logger = mylogging.getLogger(__name__, "logs/actuator.log")
+logger = mylogging.getLogger(__name__, "logs/m_pp_actuator.log")
 
 
 async def forward_circuit_breaker_command(client: AsyncModbusTcpClient, modbus_server: ModbusServer):

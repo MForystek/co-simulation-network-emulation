@@ -6,7 +6,7 @@ import socketserver
 from cosim import mylogging
 
 
-logger = mylogging.getLogger("forwarder", "logs/forwarder.log")
+logger = mylogging.getLogger("forwarder", "logs/j_pp_forwarder.log")
 
 
 # Workaround to pass arguments to handle()

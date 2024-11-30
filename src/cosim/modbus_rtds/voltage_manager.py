@@ -9,7 +9,7 @@ from cosim.utils import convert_two_modbus_registers_into_float
 from cosim.modbus_rtds.modbus_client import run_async_client    
 
 
-logger = mylogging.getLogger(__name__, "logs/manager.log")
+logger = mylogging.getLogger(__name__, "logs/m_r_manager.log")
 
 
 async def read_voltage_level_in_pu(client: AsyncModbusTcpClient, to_host, to_port):
@@ -57,8 +57,6 @@ async def send_control_circuit_breaker_signal(client: AsyncModbusTcpClient, new_
     logger.info(response)
     if response.isError():
         logger.warning("Writing to actuator coil unsuccessful")
-    if len(response.bits) != 8:
-        logger.warning(f"Got {len(response.bits)} bits from actuator, expected {8}")
     
 
 if __name__ == "__main__":

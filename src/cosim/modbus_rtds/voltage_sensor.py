@@ -12,7 +12,7 @@ from cosim.modbus_rtds.modbus_server import ModbusServer
 from cosim.modbus_rtds.modbus_client import run_async_client    
 
 
-logger = mylogging.getLogger(__name__, "logs/sensor.log")
+logger = mylogging.getLogger(__name__, "logs/m_r_sensor.log")
 
 
 async def forward_voltage_level_in_pu(client: AsyncModbusTcpClient, modbus_server: ModbusServer, bus_number: int):

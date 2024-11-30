@@ -10,7 +10,7 @@ from cosim import mylogging
 from cosim.power_network import PowerNetwork
 
 
-logger = mylogging.getLogger("pow_sim", "logs/pow_sim.log")
+logger = mylogging.getLogger("pow_sim", "logs/j_pp_pow_sim.log")
 
 
 def increase_load_by(net, add_load) -> PowerNetwork:

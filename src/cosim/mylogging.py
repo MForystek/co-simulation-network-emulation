@@ -1,4 +1,5 @@
 import logging 
+import sys
 
 from pathlib import Path
     
@@ -15,7 +16,7 @@ def getLogger(logger_name: str, path_to_file: str, level=logging.INFO):
     file_handler.setFormatter(formatter)
     file_handler.setLevel(level)
 
-    console_handler = logging.StreamHandler()
+    console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
     console_handler.setLevel(level)
 

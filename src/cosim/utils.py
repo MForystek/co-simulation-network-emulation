@@ -19,7 +19,7 @@ def parse_arguments():
                         default="0ms", type=str,
                         help="Default 0ms. Delay imposed on the network connections in seconds or milliseconds. E.g. 0ms, 1s, 500ms")
     parser.add_argument("-b", "--bandwidth", required=False,
-                        default="1", type=float,
+                        default=1, type=float,
                         help="Default 1Mb/s. Bandwidth of the network links relative to 1Mb/s. E.g. 0.1, 2.5")
     return parser.parse_args()
     

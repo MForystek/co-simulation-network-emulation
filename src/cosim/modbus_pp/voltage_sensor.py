@@ -7,11 +7,11 @@ from pymodbus import ModbusException
 
 
 from cosim import mylogging
-from cosim.modbus.modbus_server import ModbusServer
-from cosim.modbus.modbus_client import run_async_client    
+from cosim.modbus_pp.modbus_server import ModbusServer
+from cosim.modbus_pp.modbus_client import run_async_client    
 
 
-logger = mylogging.getLogger(__name__, "logs/sensor.log")
+logger = mylogging.getLogger(__name__, "logs/m_pp_sensor.log")
 
 
 async def forward_voltage_level_in_milli_pu(client: AsyncModbusTcpClient, modbus_server: ModbusServer):

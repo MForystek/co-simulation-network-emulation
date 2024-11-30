@@ -5,10 +5,10 @@ from pymodbus.client import AsyncModbusTcpClient
 from pymodbus import ModbusException
 
 from cosim import mylogging
-from cosim.modbus.modbus_client import run_async_client    
+from cosim.modbus_pp.modbus_client import run_async_client    
 
 
-logger = mylogging.getLogger(__name__, "logs/manager.log")
+logger = mylogging.getLogger(__name__, "logs/m_pp_manager.log")
 
 
 async def read_voltage_level_in_milli_pu(client: AsyncModbusTcpClient, to_host, to_port):
