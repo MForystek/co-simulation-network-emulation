@@ -21,7 +21,8 @@ elif args.network in ["d", "dnp3"]:
         from cosim.dnp3_pp.network import main as dnp3_pandapower_main
         dnp3_pandapower_main(args)
     elif args.power in ["r", "rtds"]:
-        pass
+        from cosim.dnp3_rtds.network import main as dnp3_rtds_main
+        dnp3_rtds_main(args)
 elif args.network in ["c", "c37.118"]:
     pass
 else:
