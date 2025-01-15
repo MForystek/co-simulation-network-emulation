@@ -1,0 +1,13 @@
+FROM ubuntu:jammy
+
+WORKDIR /app
+
+RUN apt update && apt install -y software-properties-common
+RUN add-apt-repository -y ppa:deadsnakes/ppa 
+RUN apt update && apt install -y \
+    net-tools \
+    iputils-ping \
+    iproute2 \
+    curl 
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3
+RUN pip install dnp3-python

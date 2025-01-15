@@ -3,6 +3,11 @@ from cosim.utils import parse_arguments
 
 args = parse_arguments()
 
+if args.lfc:
+    from cosim.lfc.network import main as lfc_main
+    lfc_main(args)
+    exit()
+
 if args.network in ["j", "json"]:
     if args.power in ["pp", "pandapower"]:
         from cosim.json_pp.network import main as json_main

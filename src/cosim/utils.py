@@ -5,6 +5,7 @@ import re
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--lfc", required=False, action="store_true")
     parser.add_argument("-n", "--network", required=True,
                         choices=["j", "json",
                                  "m", "modbus",
