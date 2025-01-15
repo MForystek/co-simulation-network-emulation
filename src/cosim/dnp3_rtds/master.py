@@ -745,7 +745,7 @@ class SOEHandler(opendnp3.ISOEHandler):
 
             
 def main():
-    app = MyMasterNew(outstation_ip="172.24.14.202", port=20002)
+    app = MyMasterNew(outstation_ip="172.24.14.211", port=20002)
     threading.Thread(target=app.start(), daemon=True)
     try:
         while True:

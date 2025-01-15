@@ -5,7 +5,7 @@ from pymodbus.client import AsyncModbusTcpClient
 from pymodbus import ModbusException
 
 from cosim import mylogging
-from cosim.modbus_pp.modbus_client import run_async_client    
+from cosim.modbus.modbus_client import run_async_client    
 
 
 logger = mylogging.getLogger(__name__, "logs/m_pp_manager.log")

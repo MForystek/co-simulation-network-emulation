@@ -16,10 +16,10 @@ if args.network in ["j", "json"]:
         raise ValueError(f"Supported power simulation for json network is PandaPower, wanted {args.power}.")
 elif args.network in ["m", "modbus"]:
     if args.power in ["pp", "pandapower"]:
-        from cosim.modbus_pp.network import main as modbus_pandapower_main
+        from cosim.modbus.pandapower.network import main as modbus_pandapower_main
         modbus_pandapower_main(args)
     elif args.power in ["r", "rtds"]:
-        from cosim.modbus_rtds.network import main as modbus_rtds_main
+        from cosim.modbus.rtds.network import main as modbus_rtds_main
         modbus_rtds_main(args)
 elif args.network in ["d", "dnp3"]:
     if args.power in ["pp", "pandapower"]:

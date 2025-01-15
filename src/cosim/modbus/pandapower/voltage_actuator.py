@@ -6,8 +6,8 @@ from pymodbus.client import AsyncModbusTcpClient
 from pymodbus import ModbusException
 
 from cosim import mylogging
-from cosim.modbus_pp.modbus_server import ModbusServer
-from cosim.modbus_pp.modbus_client import run_async_client    
+from cosim.modbus.modbus_server import ModbusServer
+from cosim.modbus.modbus_client import run_async_client    
 
 
 logger = mylogging.getLogger(__name__, "logs/m_pp_actuator.log")
@@ -17,7 +17,7 @@ async def forward_circuit_breaker_command(client: AsyncModbusTcpClient, modbus_s
     try:
         while True:
             # Check circuit breaker status coil
-            circuit_breaker_value = modbus_server.get_circuit_breaker_value()
+            circuit_breaker_value = modbus_server.get_circuit_breaker_control_value()
             logger.info(f"Circuit breaker coil value: {circuit_breaker_value}")
             
             if circuit_breaker_value == True:

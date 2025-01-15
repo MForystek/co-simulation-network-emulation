@@ -11,6 +11,6 @@ RUN apt install -y \
     python3.10 \
     curl 
 RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10
-RUN pip install pymodbus
+RUN pip install pymodbus==3.7.2
 
 CMD ["/bin/bash"]

@@ -6,7 +6,7 @@ import asyncio
 
 from cosim import mylogging
 from cosim.power_network import PowerNetwork
-from cosim.modbus_pp.modbus_server import ModbusServer
+from cosim.modbus.modbus_server import ModbusServer
 
 
 logger = mylogging.getLogger("pow_sim", "logs/m_pp_pow_sim.log")
@@ -30,10 +30,10 @@ def simulate_step(pnet: PowerNetwork, voltage_sensor: ModbusServer, action, *arg
     # Update Modbus voltage sensor
     # Using milli pu to avoid floats
     voltages_in_milli_pu = [int(voltage * 1000) for voltage in pnet.get_voltage_levels()]
-    voltage_sensor.update_voltages(voltages_in_milli_pu)
+    voltage_sensor.update_voltage(voltages_in_milli_pu, 0)
     
     # Handle voltage level
-    circuit_breaker_value = voltage_sensor.get_circuit_breaker_value()
+    circuit_breaker_value = voltage_sensor.get_circuit_breaker_control_value()
     logger.info(f"Circuit breaker coil value: {circuit_breaker_value}")
     if circuit_breaker_value == True:
         pnet.open_switch()    

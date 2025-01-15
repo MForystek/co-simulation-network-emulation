@@ -7,9 +7,11 @@ from pymodbus import ModbusException
 
 
 from cosim import mylogging
-from cosim.modbus_pp.modbus_server import ModbusServer
-from cosim.modbus_pp.modbus_client import run_async_client    
+from cosim.modbus.modbus_server import ModbusServer
+from cosim.modbus.modbus_client import run_async_client    
 
+
+MILLI = 1000
 
 logger = mylogging.getLogger(__name__, "logs/m_pp_sensor.log")
 
@@ -25,10 +27,10 @@ async def forward_voltage_level_in_milli_pu(client: AsyncModbusTcpClient, modbus
                 logger.warning("Reading holding registers from sensor unsuccessful")
             if len(response.registers) != how_many:
                 logger.warning(f"Read {len(response.registers)} registers, expected {how_many}")
-            logger.info(f"Voltage 0: {response.registers[0]/1000:.3f}, Voltage 1: {response.registers[1]/1000:.3f}")
+            logger.info(f"Voltage 0: {response.registers[0]/MILLI:.3f}, Voltage 1: {response.registers[1]/MILLI:.3f}")
             
             # Update context with new voltage values
-            modbus_server.update_voltages(response.registers)
+            modbus_server.update_voltage(response.registers, start_address)
             
             await asyncio.sleep(1)
     except ModbusException as e:

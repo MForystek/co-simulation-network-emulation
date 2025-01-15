@@ -10,7 +10,7 @@ if args.network in ["j", "json"]:
     from cosim.json_pp.power import main as json_main
     json_main()
 elif args.network in ["m", "modbus"]:
-    from cosim.modbus_pp.power import main as modbus_main
+    from cosim.modbus.pandapower.power import main as modbus_main
     modbus_main()
 elif args.network in ["d", "dnp3"]:
     from cosim.dnp3_pp.power import main as dnp3_main

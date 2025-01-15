@@ -6,7 +6,7 @@ from pymodbus import ModbusException
 
 from cosim import mylogging
 from cosim.utils import convert_two_modbus_registers_into_float
-from cosim.modbus_rtds.modbus_client import run_async_client    
+from cosim.modbus.modbus_client import run_async_client    
 
 
 logger = mylogging.getLogger(__name__, "logs/m_r_manager.log")
