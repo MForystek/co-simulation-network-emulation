@@ -2,16 +2,15 @@ import time
 import threading
 import pandas as pd
 import pandapower as pp
-import asyncio
 
 from pydnp3 import opendnp3
 
-from cosim import mylogging
+from cosim.mylogging import getLogger
 from cosim.power_network import PowerNetwork
-from cosim.dnp3_pp.outstation import OutstationApplication
+from cosim.dnp3.pandapower.outstation import OutstationApplication
 
 
-logger = mylogging.getLogger("pow_sim", "logs/d_pp_pow_sim.log")
+_log = getLogger("pow_sim", "logs/d_pp_pow_sim.log")
 
 
 def increase_load_by(pnet: PowerNetwork, add_load, load_id) -> PowerNetwork:
@@ -27,7 +26,7 @@ def simulate_step(pnet: PowerNetwork, voltage_sensor: OutstationApplication, act
     # Run powerflow
     pp.runpp(pnet.model)
     
-    logger.info(pnet.get_values_for_printing())
+    _log.info(pnet.get_values_for_printing())
     
     # Update DNP3 voltage sensor
     # Using milli pu to avoid floats
@@ -37,7 +36,7 @@ def simulate_step(pnet: PowerNetwork, voltage_sensor: OutstationApplication, act
     
     # Handle voltage level
     circuit_breaker_value = voltage_sensor.get_from_db("Binary", 0)
-    logger.info(f"Circuit breaker value: {circuit_breaker_value}")
+    _log.info(f"Circuit breaker value: {circuit_breaker_value}")
     if circuit_breaker_value == True:
         pnet.open_switch()    
         
@@ -48,8 +47,8 @@ def simulate_step(pnet: PowerNetwork, voltage_sensor: OutstationApplication, act
 def main():
     pd.set_option('display.width', None)
     
-    logger.info("--------------------------------------")
-    logger.info("Setting up the power grid...")
+    _log.info("--------------------------------------")
+    _log.info("Setting up the power grid...")
     
     # Initializing power network
     pnet = PowerNetwork()
@@ -59,8 +58,8 @@ def main():
     voltage_sensor_server = threading.Thread(target=voltage_sensor.enable(), daemon=True)
     voltage_sensor_server.start()
     
-    logger.info("Setup finished. Starting simulation...")
-    logger.info("--------------------------------------")
+    _log.info("Setup finished. Starting simulation...")
+    _log.info("--------------------------------------")
         
     # Initial state
     voltage_sensor.apply_update(opendnp3.Binary(False), 0)

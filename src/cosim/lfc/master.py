@@ -1,18 +1,18 @@
-import logging
+import datetime
 import threading
 import time
-import datetime
 
-from typing import Callable, Union, Dict, List, Optional, Tuple
+from typing import Callable, Union, Dict, List, Optional
 
 from pydnp3 import opendnp3, openpal, asiopal, asiodnp3
 from pydnp3.opendnp3 import GroupVariation, GroupVariationID
 
-from cosim import mylogging
 from cosim.mylogging import getLogger
 from cosim.lfc.visitors import *
 from cosim.lfc.station_utils import parsing_gvid_to_gvcls, parsing_gv_to_mastercmdtype
 from cosim.lfc.station_utils import collection_callback, command_callback, restart_callback
+from cosim.lfc.soe_handler import SOEHandler
+
 
 FILTERS = opendnp3.levels.NORMAL | opendnp3.levels.ALL_COMMS
 
@@ -20,20 +20,8 @@ _log = getLogger(__name__, "logs/d_r_master.log")
 
 # alias DbPointVal
 DbPointVal = Union[float, int, bool, None]
-DbStorage = Dict[opendnp3.GroupVariation, Dict[
+DbStorage = Dict[GroupVariation, Dict[
     int, DbPointVal]]  # e.g., {GroupVariation.Group30Var6: {0: 4.8, 1: 14.1, 2: 27.2, 3: 0.0, 4: 0.0}
-ICollectionIndexedVal = Union[opendnp3.ICollectionIndexedAnalog,
-                              opendnp3.ICollectionIndexedBinary,
-                              opendnp3.ICollectionIndexedAnalogOutputStatus,
-                              opendnp3.ICollectionIndexedBinaryOutputStatus]
-VisitorClass = Union[VisitorIndexedTimeAndInterval,
-                     VisitorIndexedAnalog,
-                     VisitorIndexedBinary,
-                     VisitorIndexedCounter,
-                     VisitorIndexedFrozenCounter,
-                     VisitorIndexedAnalogOutputStatus,
-                     VisitorIndexedBinaryOutputStatus,
-                     VisitorIndexedDoubleBitBinary]
 
 
 class MyMasterNew:
@@ -137,7 +125,7 @@ class MyMasterNew:
         _log.debug('Configuring some scans (periodic reads).')
         # Set up a "slow scan", an infrequent integrity poll that requests events and static data for all classes.
         self.slow_scan = self.master.AddClassScan(opendnp3.ClassField().AllClasses(),  # TODO: add interface entrypoint
-                                                  openpal.TimeDuration().Seconds(1),
+                                                  openpal.TimeDuration().Milliseconds(100),
                                                   opendnp3.TaskConfig().Default())
         # Set up a "fast scan", a relatively-frequent exception poll that requests events and class 1 static data.
         self.fast_scan = self.master.AddClassScan(opendnp3.ClassField(opendnp3.ClassField.CLASS_1),
@@ -263,19 +251,19 @@ class MyMasterNew:
         self.master.SelectAndOperate(command_set, callback, config)
 
     def _retrieve_all_obj_by_gvids_w_ts(self,
-                                        gv_ids: Optional[List[opendnp3.GroupVariationID]] = None,
+                                        gv_ids: Optional[List[GroupVariationID]] = None,
                                         config=opendnp3.TaskConfig().Default()
                                         ):
         """Retrieve point value (from an outstation databse) based on gvId (Group Variation ID).
 
-        :param opendnp3.GroupVariationID gv_ids: list of group-variance Id
+        :param GroupVariationID gv_ids: list of group-variance Id
         :param opendnp3.TaskConfig config: Task configuration. Default: opendnp3.TaskConfig().Default()
 
         :return: retrieved point values stored in a nested dict.
-        :rtype: Dict[opendnp3.GroupVariation, Dict[int, DbPointVal]]
+        :rtype: Dict[GroupVariation, Dict[int, DbPointVal]]
 
         """
-        gv_ids: Optional[List[opendnp3.GroupVariationID]]
+        gv_ids: Optional[List[GroupVariationID]]
         if gv_ids is None:  # using default
             gv_ids = [GroupVariationID(30, 6),
                       GroupVariationID(1, 2),
@@ -290,7 +278,7 @@ class MyMasterNew:
         for gv_id in gv_ids:
             # self.retrieve_all_obj_by_gvid(gv_id=gv_id, config=config)
             self.retrieve_db_by_gvid(gv_id=gv_id)
-            gv_cls: opendnp3.GroupVariation = parsing_gvid_to_gvcls(gv_id)
+            gv_cls: GroupVariation = parsing_gvid_to_gvcls(gv_id)
             # filtered_db_w_ts.update({gv_cls: self.soe_handler.gv_ts_ind_val_dict.get(gv_cls)})
             filtered_db_w_ts.update({gv_cls: (self.soe_handler.gv_last_poll_dict.get(gv_cls),
                                               self.soe_handler.gv_index_value_nested_dict.get(gv_cls))})
@@ -298,35 +286,35 @@ class MyMasterNew:
         return filtered_db_w_ts
 
     # def retrieve_all_obj_by_gvis(self,
-    #                              gv_id: opendnp3.GroupVariationID = None,
+    #                              gv_id: GroupVariationID = None,
     #                              index=None
     #                              ) -> DbPointVal:
     #     """
     #     Retrive value based group-variation id and index
     #     """
     #
-    #     gv_cls: opendnp3.GroupVariation = parsing_gvid_to_gvcls(gv_id)
+    #     gv_cls: GroupVariation = parsing_gvid_to_gvcls(gv_id)
     #     val: DbPointVal = self.soe_handler.gv_index_value_nested_dict.get(gv_cls).get(index)
     #     return val
 
-    def retrieve_db_by_gvid(self, gv_id: opendnp3.GroupVariationID) -> DbStorage:
+    def retrieve_db_by_gvid(self, gv_id: GroupVariationID) -> DbStorage:
         """Retrieve point value based on group-variation id, e.g., GroupVariationID(30, 6)
 
         Return ret_val: "ValStorage"
 
         EXAMPLE:
         >>> # prerequisite: outstation db properly configured and updated, master_application properly initialized
-        >>> master_application.retrieve_db_by_gvid(gv_id=opendnp3.GroupVariationID(30, 6))
+        >>> master_application.retrieve_db_by_gvid(gv_id=GroupVariationID(30, 6))
         ({GroupVariation.Group30Var6: {0: 7.8, 1: 14.1, 2: 22.2, 3: 0.0, 4: 0.0, 5: 0.0, 6: 0.0, 7: 0.0}}, datetime.datetime(2022, 9, 8, 22, 3, 50, 591742), 'init')
         """
 
         # alias
         # ValStorage = Union[None, Tuple[datetime.datetime, Dict[int, DbPointVal]]]
-        gv_cls: opendnp3.GroupVariation = parsing_gvid_to_gvcls(gv_id)
+        gv_cls: GroupVariation = parsing_gvid_to_gvcls(gv_id)
         # val_storage: ValStorage = self.soe_handler.gv_ts_ind_val_dict.get(gv_cls)
         # val_storage = self.soe_handler.gv_last_poll_dict.get(gv_cls), self.soe_handler.gv_index_value_nested_dict.get(
         #     gv_cls)
-        ret_val: {opendnp3.GroupVariation: Dict[int, DbPointVal]}
+        ret_val: Dict[GroupVariation: Dict[int, DbPointVal]]
 
         ts = self.soe_handler.gv_last_poll_dict.get(gv_cls)
         stale_if_longer_than = self.stale_if_longer_than
@@ -342,12 +330,12 @@ class MyMasterNew:
 
         return ret_val
 
-    def _get_updated_val_storage(self, gv_id: opendnp3.GroupVariationID) -> DbStorage:
+    def _get_updated_val_storage(self, gv_id: GroupVariationID) -> DbStorage:
         """
         Wrap on self.master.ScanAllObjects with retry logic
         """
 
-        gv_cls: opendnp3.GroupVariation = parsing_gvid_to_gvcls(gv_id)
+        gv_cls: GroupVariation = parsing_gvid_to_gvcls(gv_id)
 
         # Start from fresh--Set val_storage to None
         self.soe_handler.gv_index_value_nested_dict[gv_cls] = None
@@ -358,7 +346,7 @@ class MyMasterNew:
         # TODO: "prettify" the following while loop workflow. e.g., helper function + recurrent function
         self.master.ScanAllObjects(gvId=gv_id,
                                    config=config)
-        # gv_cls: opendnp3.GroupVariation = parsing_gvid_to_gvcls(gv_id)
+        # gv_cls: GroupVariation = parsing_gvid_to_gvcls(gv_id)
         # # update stale logic to improve performance
         # self.soe_handler.update_stale_db()
         gv_db_val = self.soe_handler.gv_index_value_nested_dict.get(gv_cls)
@@ -370,7 +358,7 @@ class MyMasterNew:
         while gv_db_val is None and n_retry < retry_max:
             self.master.ScanAllObjects(gvId=gv_id,
                                        config=config)
-            # gv_cls: opendnp3.GroupVariation = parsing_gvid_to_gvcls(gv_id)
+            # gv_cls: GroupVariation = parsing_gvid_to_gvcls(gv_id)
             time.sleep(sleep_delay)
             gv_db_val = self.soe_handler.gv_index_value_nested_dict.get(gv_cls)
             if gv_db_val is None:
@@ -429,7 +417,7 @@ class MyMasterNew:
         GroupVariation.Group30Var6: {0: 4.8, 1: 12.1, 2: 24.2, 3: 0.0}}
         """
 
-        gv_id = opendnp3.GroupVariationID(group, variation)
+        gv_id = GroupVariationID(group, variation)
         return self.retrieve_db_by_gvid(gv_id=gv_id)
 
     def get_db_by_group_variation_index(self, group: int, variation: int, index: int) -> DbStorage:
@@ -444,8 +432,8 @@ class MyMasterNew:
 
         """
 
-        gv_id = opendnp3.GroupVariationID(group, variation) 
-        gv_cls: opendnp3.GroupVariation = parsing_gvid_to_gvcls(gv_id)
+        gv_id = GroupVariationID(group, variation) 
+        gv_cls: GroupVariation = parsing_gvid_to_gvcls(gv_id)
 
         ts = self.soe_handler.gv_last_poll_dict.get(gv_cls)
         stale_if_longer_than = self.stale_if_longer_than
@@ -461,8 +449,8 @@ class MyMasterNew:
 
     def get_val_by_group_variation_index(self, group: int, variation: int, index: int) -> DbPointVal:
         val_w_meta = self.get_db_by_group_variation_index(group, variation, index)
-        gv_id = opendnp3.GroupVariationID(group, variation)
-        gv_cls: opendnp3.GroupVariation = parsing_gvid_to_gvcls(gv_id)
+        gv_id = GroupVariationID(group, variation)
+        gv_cls: GroupVariation = parsing_gvid_to_gvcls(gv_id)
         if val_w_meta.get(gv_cls):
             return val_w_meta.get(gv_cls).get(index)
         else:
@@ -548,7 +536,7 @@ class MyMasterNew:
         except AttributeError:
             pass
 
-    def send_scan_all_request(self, gv_ids: List[opendnp3.GroupVariationID] = None):
+    def send_scan_all_request(self, gv_ids: List[GroupVariationID] = None):
         """send requests to retrieve all point values, if gv_ids not provided then use default """
         config = opendnp3.TaskConfig().Default()
         if gv_ids is None:
@@ -559,210 +547,10 @@ class MyMasterNew:
         for gv_id in gv_ids:
             self.master.ScanAllObjects(gvId=gv_id,
                                        config=config)
-      
-
-class SOEHandler(opendnp3.ISOEHandler):
-    """
-        Override ISOEHandler in this manner to implement application-specific sequence-of-events behavior.
-
-        This is an interface for SequenceOfEvents (SOE) callbacks from the Master stack to the application layer.
-    """
-
-    def __init__(self, soehandler_log_level=logging.INFO, station_ref=None, *args, **kwargs):
-        super(SOEHandler, self).__init__()
-
-        self.station_ref: MyMasterNew = station_ref
-
-        # auxiliary database
-        self._gv_index_value_nested_dict: Dict[GroupVariation, Optional[Dict[int, DbPointVal]]] = {}
-        self._gv_ts_ind_val_dict: Dict[GroupVariation, Tuple[datetime.datetime, Optional[Dict[int, DbPointVal]]]] = {}
-        self._gv_last_poll_dict: Dict[GroupVariation, Optional[datetime.datetime]] = {}
-
-        # logging
-        self.logger = mylogging.getLogger(self.__class__.__name__, "logs/d_pp_master.log", soehandler_log_level)
-
-        # db
-        self._db = self.init_db()
-        
-        self.integral1 = 0.0
-        self.integral2 = 0.0
-        self.integral3 = 0.0
-
-    def Process(self, info,
-                values: ICollectionIndexedVal,
-                *args, **kwargs):
-        """
-            Process measurement data.
-            Note: will only evoke when there is response from outstation
-
-        :param info: HeaderInfo
-        :param values: A collection of values received from the Outstation (various data types are possible).
-        """
-        # print("=========Process, info.gv, values", info.gv, values)
-        visitor_class_types: dict = {
-            opendnp3.ICollectionIndexedBinary: VisitorIndexedBinary,
-            opendnp3.ICollectionIndexedDoubleBitBinary: VisitorIndexedDoubleBitBinary,
-            opendnp3.ICollectionIndexedCounter: VisitorIndexedCounter,
-            opendnp3.ICollectionIndexedFrozenCounter: VisitorIndexedFrozenCounter,
-            opendnp3.ICollectionIndexedAnalog: VisitorIndexedAnalog,
-            opendnp3.ICollectionIndexedBinaryOutputStatus: VisitorIndexedBinaryOutputStatus,
-            opendnp3.ICollectionIndexedAnalogOutputStatus: VisitorIndexedAnalogOutputStatus,
-            opendnp3.ICollectionIndexedTimeAndInterval: VisitorIndexedTimeAndInterval
-        }
-        visitor_class: Union[Callable, VisitorClass] = visitor_class_types[type(values)]
-        visitor = visitor_class()  # init
-        # hot-fix VisitorXXAnalog do not distinguish float and integer.
-        if visitor_class == VisitorIndexedAnalog:
-            # Parsing to Int
-            if info.gv in [
-                # GroupVariation.Group30Var0,
-                GroupVariation.Group30Var1,
-                GroupVariation.Group30Var2,
-                GroupVariation.Group30Var3,
-                GroupVariation.Group30Var4,
-                # GroupVariation.Group32Var0,
-                GroupVariation.Group32Var1,
-                GroupVariation.Group32Var2,
-                GroupVariation.Group32Var3,
-                GroupVariation.Group32Var4
-            ]:
-                visitor = VisitorIndexedAnalogInt()
-        elif visitor_class == VisitorIndexedAnalogOutputStatus:
-            if info.gv in [
-                # GroupVariation.Group40Var0,
-                GroupVariation.Group40Var1,
-                GroupVariation.Group40Var2,
-                # GroupVariation.Group42Var0,
-                GroupVariation.Group42Var1,
-                GroupVariation.Group42Var2,
-                GroupVariation.Group42Var3,
-                GroupVariation.Group42Var4
-            ]:
-                visitor = VisitorIndexedAnalogOutputStatusInt()
-        # Note: mystery method, magic side effect to update visitor.index_and_value
-        values.Foreach(visitor)
-
-        # visitor.index_and_value: List[Tuple[int, DbPointVal]]
-        for index, value in visitor.index_and_value:
-            log_string = 'SOEHandler.Process {0}\theaderIndex={1}\tdata_type={2}\tindex={3}\tvalue={4}'
-            self.logger.debug(log_string.format(info.gv, info.headerIndex, type(values).__name__, index, value))
-        
-        
-        if info.gv in [GroupVariation.Group30Var6]:
-            speed_1 = visitor.index_and_value[0][1] # ACE2_1
-            speed_3 = visitor.index_and_value[2][1] # ACE3_1
-            speed_6 = visitor.index_and_value[5][1] # ACE1_1
-            tl1 = visitor.index_and_value[9][1]
-            tl2 = visitor.index_and_value[10][1]
-            tl3 = visitor.index_and_value[11][1]
-            self.logger.info(f"Gen 1 | Speed: {speed_1} || Gen 3 | Speed: {speed_3} || Gen 6 | Speed: {speed_6}")
-            self.logger.info(f"TL 1 | Val: {tl1} || TL 2 | Val: {tl2} || TL 3 | Val: {tl3}")
-            
-            self.integral3 += (speed_6 - 377) / 377 * 20 + tl1
-            ACE1_1 = self.integral3 * -0.005 #+ 0.02857
-            
-            self.integral1 += (speed_1 - 377) / 377 * 20 + tl2
-            ACE2_1 = self.integral1 * -0.005 #+ 0.02574
-            
-            self.integral2 += (speed_3 - 377) / 377 * 20 + tl3
-            ACE3_1 = self.integral2 * -0.005 #+ 0.02371
-            
-            self.logger.info(f"ACE1_1: {ACE1_1} || ACE2_1: {ACE2_1} || ACE3_1: {ACE3_1}")
-            
-            self.station_ref.send_direct_point_command(40, 4, 0, ACE1_1)
-            self.station_ref.send_direct_point_command(40, 4, 1, ACE2_1)
-            self.station_ref.send_direct_point_command(40, 4, 2, ACE3_1)
-            
-        info_gv: GroupVariation = info.gv
-        visitor_ind_val: List[Tuple[int, DbPointVal]] = visitor.index_and_value
-
-        # _log.info("======== SOEHandler.Process")
-        # _log.info(f"info_gv {info_gv}")
-        # _log.info(f"visitor_ind_val {visitor_ind_val}")
-        self._post_process(info_gv=info_gv, visitor_ind_val=visitor_ind_val)
-
-    def _post_process(self, info_gv: GroupVariation, visitor_ind_val: List[Tuple[int, DbPointVal]]):
-        """
-        SOEHandler post process logic to stage data at MasterStation side
-        to improve performance: e.g., consistent output
-
-        info_gv: GroupVariation,
-        visitor_ind_val: List[Tuple[int, DbPointVal]]
-        """
-        # Use dict update method to mitigate delay due to asynchronous communication. (i.e., return None)
-        # Also, capture unsolicited updated values.
-        if not self._gv_index_value_nested_dict.get(info_gv):
-            self._gv_index_value_nested_dict[info_gv] = (dict(visitor_ind_val))
-        else:
-            self._gv_index_value_nested_dict[info_gv].update(dict(visitor_ind_val))
-
-        # Use another layer of storage to handle timestamp related logic
-        self._gv_ts_ind_val_dict[info_gv] = (datetime.datetime.now(),
-                                             self._gv_index_value_nested_dict.get(info_gv))
-        # Use another layer of storage to handle timestamp related logic
-        self._gv_last_poll_dict[info_gv] = datetime.datetime.now()
-
-    def Start(self):
-        self.logger.debug('In SOEHandler.Start====')
-
-    def End(self):
-        self.logger.debug('In SOEHandler.End')
-
-    @property
-    def gv_index_value_nested_dict(self) -> Dict[GroupVariation, Optional[Dict[int, DbPointVal]]]:
-        return self._gv_index_value_nested_dict
-
-    @property
-    def gv_ts_ind_val_dict(self):
-        return self._gv_ts_ind_val_dict
-
-    @property
-    def gv_last_poll_dict(self) -> Dict[GroupVariation, Optional[datetime.datetime]]:
-        return self._gv_last_poll_dict
-
-    @property
-    def db(self) -> dict:
-        """micmic DbHandler.db"""
-        self._consolidate_db()
-        return self._db
-
-    @staticmethod
-    def init_db(size=10):
-        db = {}
-        for number, gv_name in zip([size, size, size, size, size],
-                                   ["Analog", "AnalogOutputStatus",
-                                    "Binary", "BinaryOutputStatus",
-                                    "AnalogDouble"]):
-            val_body = dict((n, None) for n in range(number))
-            db[gv_name] = val_body
-
-        return db
-
-    def _consolidate_db(self):
-        """map group variance to db with 4 keys:
-        "Binary", "BinaryOutputStatus", "Analog", "AnalogOutputStatus"
-        """
-        pass
-        # for Analog
-        _db = {"Analog": self._gv_index_value_nested_dict.get(GroupVariation.Group30Var1)}
-        if _db.get("Analog"):
-            self._db.update(_db)
-        # for Binary
-        _db = {"Binary": self._gv_index_value_nested_dict.get(GroupVariation.Group1Var2)}
-        if _db.get("Binary"):
-            self._db.update(_db)
-        # for Binary
-        _db = {"BinaryOutputStatus": self._gv_index_value_nested_dict.get(GroupVariation.Group10Var2)}
-        if _db.get("BinaryOutputStatus"):
-            self._db.update(_db)      
-        # for AnalogDouble
-        _db = {"AnalogDouble": self._gv_index_value_nested_dict.get(GroupVariation.Group30Var6)}
-        if _db.get("AnalogDouble"):
-            self._db.update(_db)
 
             
 def main():
-    app = MyMasterNew(outstation_ip="172.24.14.202", port=20002)
+    app = MyMasterNew(outstation_ip="172.24.14.211", port=20002)
     threading.Thread(target=app.start(), daemon=True)
     try:
         while True:

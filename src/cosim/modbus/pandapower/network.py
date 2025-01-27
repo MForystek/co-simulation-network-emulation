@@ -1,10 +1,10 @@
-import pathlib
-
 from mininet.net import Containernet
 from mininet.node import OVSSwitch
 from mininet.cli import CLI
 from mininet.link import TCLink
 from mininet.log import info, setLogLevel
+
+from cosim.utils import SRC_PATH
 
 
 def main(args):
@@ -19,7 +19,7 @@ def main(args):
 
     net = Containernet() 
 
-    code_dir = str(pathlib.Path(__file__).parent.parent.parent.parent.resolve())
+    code_dir = str(SRC_PATH)
     volume_dir = code_dir + ":/app"
 
     # Hosts

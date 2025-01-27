@@ -3,7 +3,7 @@ import time
 
 from pydnp3 import opendnp3, openpal, asiopal, asiodnp3
 
-from cosim.dnp3_pp.station_utils import DBHandler, MyLogger
+from cosim.dnp3.pandapower.station_utils import DBHandler, MyLogger
 from cosim.mylogging import getLogger
 
 
