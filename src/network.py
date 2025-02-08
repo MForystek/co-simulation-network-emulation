@@ -5,7 +5,7 @@ args = parse_arguments()
 
 # IEEE 39-bus system
 if args.lfc:
-    from cosim.lfc.network import main as lfc_main
+    from cosim.dnp3.lfc.network import main as lfc_main
     lfc_main(args)
     exit()
 

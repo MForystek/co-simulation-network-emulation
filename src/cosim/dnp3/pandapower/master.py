@@ -19,14 +19,11 @@ class PPSOEHandler(SOEHandler):
 def main():
     outstation_ip = "172.17.0.1"
     port = 20002
-    master_id = 1
-    outstation_id = 2
-    concurrency_hint = 1
     logs_file = "logs/d_pp_master.log"    
     
-    master = MasterStation(outstation_ip=outstation_ip, port=port, master_id=master_id, outstation_id=outstation_id)
+    master = MasterStation(outstation_ip=outstation_ip, port=port, master_id=1, outstation_id=2)
     soe_handler = PPSOEHandler(logs_file, station_ref=master)
-    master.configure_master(soe_handler, outstation_ip, port, concurrency_hint)
+    master.configure_master(soe_handler, outstation_ip, port)
     
     threading.Thread(target=master.start(), daemon=True)
     time.sleep(300)

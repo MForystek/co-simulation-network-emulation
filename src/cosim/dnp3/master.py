@@ -3,7 +3,7 @@ from dnp3_python.dnp3station.master import MyMaster
 
 
 class MasterStation(MyMaster):    
-    def configure_master(self, soe_handler, outstation_ip, port, concurrency_hint):
+    def configure_master(self, soe_handler, outstation_ip, port, concurrency_hint=1):
         self.clean_master()
         self.soe_handler = soe_handler
         self.manager = asiodnp3.DNP3Manager(concurrency_hint, self.log_handler)
