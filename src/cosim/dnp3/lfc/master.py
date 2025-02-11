@@ -23,15 +23,6 @@ class LFCSOEHandler(SOEHandler):
     
     def _process_incoming_data(self, info_gv, visitor_ind_val):
         if info_gv in [GroupVariation.Group30Var6]:
-            speed_1 = visitor_ind_val[0][1] # for ACE2_1
-            speed_3 = visitor_ind_val[2][1] # for ACE3_1
-            speed_6 = visitor_ind_val[5][1] # for ACE1_1
-            tl1 = visitor_ind_val[10][1]
-            tl2 = visitor_ind_val[11][1]
-            tl3 = visitor_ind_val[12][1]
-            self.logger.info(f"Gen 1 | Speed: {speed_1} || Gen 3 | Speed: {speed_3} || Gen 6 | Speed: {speed_6}")
-            self.logger.info(f"TL 1: {tl1} || TL 2: {tl2} || TL 3: {tl3}")
-            
             curr_time = time.time_ns()
             if self.prev_time == 0:
                 self.prev_time = curr_time - 1
@@ -39,6 +30,26 @@ class LFCSOEHandler(SOEHandler):
             self.prev_time = curr_time
             
             K_I = 0.005
+            
+            speed_1 = visitor_ind_val[0][1] # for ACE2_1
+            speed_3 = visitor_ind_val[2][1] # for ACE3_1
+            speed_6 = visitor_ind_val[5][1] # for ACE1_1
+            
+            tl_13_T19 = visitor_ind_val[10][1] # tie line from area 1 to 3, line number 19
+            tl_12_T21 = visitor_ind_val[11][1] # the rest by analogy
+            tl_23_T05 = visitor_ind_val[12][1] 
+            tl_23_T02 = visitor_ind_val[13][1] 
+            tl_31_T19 = visitor_ind_val[14][1]
+            tl_21_T21 = visitor_ind_val[15][1]
+            tl_32_T05 = visitor_ind_val[16][1]
+            tl_32_T02 = visitor_ind_val[17][1]
+            
+            tl1 = (tl_13_T19 + tl_12_T21 - 143.442) / 100
+            tl2 = (tl_21_T21 + tl_23_T02 + tl_23_T05 - 247.21) / 100
+            tl3 = (tl_31_T19 + tl_32_T02 + tl_32_T05 + 389.5655) / 100
+            
+            self.logger.info(f"Gen 1 | Speed: {speed_1} || Gen 3 | Speed: {speed_3} || Gen 6 | Speed: {speed_6}")
+            self.logger.info(f"TL 1: {tl1} || TL 2: {tl2} || TL 3: {tl3}")
             
             self._update_controller(1, speed_6, tl1, K_I, time_diff_in_sec)
             ACE1_1 = self._integral1 + 0.02857 #0.02957
