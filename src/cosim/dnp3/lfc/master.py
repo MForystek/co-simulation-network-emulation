@@ -5,7 +5,7 @@ import time
 from pydnp3.opendnp3 import GroupVariation
 from dnp3_python.dnp3station.visitors import *
 
-from cosim.dnp3.lfc.LFCHandler import LFCHandler
+from cosim.dnp3.lfc import LFC_handler, UFLS_handler
 from cosim.dnp3.soe_handler import SOEHandler
 from cosim.dnp3.master import MasterStation
 
@@ -13,15 +13,19 @@ from cosim.dnp3.master import MasterStation
 class IEEE39BusSOEHandler(SOEHandler):
     def __init__(self, log_file_path="logs/soehandler.log", soehandler_log_level=logging.INFO, station_ref=None, *args, **kwargs):
         super().__init__(log_file_path, soehandler_log_level, station_ref, *args, **kwargs)
-        self._LFC_handler = LFCHandler()
+        self._LFC_handler = LFC_handler.LFCHandler()
+        self._UFLS_handler = UFLS_handler.UFLSHandler()
     
     
     def _process_incoming_data(self, info_gv, visitor_index_and_value):
         if info_gv in [GroupVariation.Group30Var6]:            
             ACEs = self._LFC_handler.get_updated_ACEs(visitor_index_and_value)
+            load_to_shed = self._UFLS_handler.get_percentage_of_load_to_shed(visitor_index_and_value)
+            
             self.station_ref.send_direct_point_command(40, 4, 0, ACEs[0])
             self.station_ref.send_direct_point_command(40, 4, 1, ACEs[1])
             self.station_ref.send_direct_point_command(40, 4, 2, ACEs[2])
+            self.station_ref.send_direct_point_command(40, 4, 3, load_to_shed)
 
         
 def main():
