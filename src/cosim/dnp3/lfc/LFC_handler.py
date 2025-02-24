@@ -4,7 +4,7 @@ import time
 from cosim.mylogging import getLogger
 
 
-_log = getLogger(__name__, "logs/LFCHandler")
+_log = getLogger(__name__, "logs/LFCHandler.log")
 
 
 class LFCHandler:

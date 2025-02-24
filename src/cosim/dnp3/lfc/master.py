@@ -6,11 +6,11 @@ from pydnp3.opendnp3 import GroupVariation
 from dnp3_python.dnp3station.visitors import *
 
 from cosim.dnp3.lfc import LFC_handler, UFLS_handler
-from cosim.dnp3.soe_handler import SOEHandler
+from cosim.dnp3.soe_handler import SOEHandlerAdjusted
 from cosim.dnp3.master import MasterStation
 
 
-class IEEE39BusSOEHandler(SOEHandler):
+class IEEE39BusSOEHandler(SOEHandlerAdjusted):
     def __init__(self, log_file_path="logs/soehandler.log", soehandler_log_level=logging.INFO, station_ref=None, *args, **kwargs):
         super().__init__(log_file_path, soehandler_log_level, station_ref, *args, **kwargs)
         self._LFC_handler = LFC_handler.LFCHandler()
@@ -31,7 +31,7 @@ class IEEE39BusSOEHandler(SOEHandler):
 def main():
     logs_file = "logs/d_r_lfc_master.log"
     outstation_ip = "172.24.14.211"
-    port = 20002
+    port = 20000
     
     master = MasterStation(outstation_ip=outstation_ip, port=port, master_id=1, outstation_id=2)
     soe_handler = IEEE39BusSOEHandler(logs_file, station_ref=master)

@@ -4,10 +4,10 @@ import threading
 from pydnp3.opendnp3 import GroupVariation
 
 from cosim.dnp3.master import MasterStation
-from cosim.dnp3.soe_handler import SOEHandler
+from cosim.dnp3.soe_handler import SOEHandlerAdjusted
 
 
-class RSOEHandler(SOEHandler):    
+class RSOEHandler(SOEHandlerAdjusted):    
     def _process_incoming_data(self, info_gv, visitor_ind_val):
         if info_gv in [GroupVariation.Group30Var6]:
             voltage_0 = visitor_ind_val[0][1] # p.u.

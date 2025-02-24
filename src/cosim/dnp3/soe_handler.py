@@ -55,7 +55,7 @@ VisitorIndexedAnalogOutputStatusInts: list = [
 ]
 
 
-class SOEHandler(opendnp3.ISOEHandler):
+class SOEHandlerAdjusted(opendnp3.ISOEHandler):
     """
         Override ISOEHandler in this manner to implement application-specific sequence-of-events behavior.
 
@@ -63,7 +63,7 @@ class SOEHandler(opendnp3.ISOEHandler):
     """
 
     def __init__(self, log_file_path="logs/soehandler.log", soehandler_log_level=logging.INFO, station_ref=None, *args, **kwargs):
-        super(SOEHandler, self).__init__()
+        super(SOEHandlerAdjusted, self).__init__()
 
         self.station_ref = station_ref
 
