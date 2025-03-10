@@ -5,7 +5,7 @@ import threading
 from pydnp3.opendnp3 import GroupVariation
 
 from cosim.dnp3.soe_handler import SOEHandlerAdjusted
-from cosim.dnp3.lfc.master import MasterStation
+from cosim.dnp3.lfc.LFC_master import MasterStation
 
 
 class DLAASOEHandler(SOEHandlerAdjusted):
@@ -25,8 +25,8 @@ class DLAASOEHandler(SOEHandlerAdjusted):
             freq_pu = (freq3 - self._NOMINAL_FREQ) / self._NOMINAL_FREQ
             load_4_dlaa = freq_pu * -self._load4_dlaa_coeff * self._LOAD4_NOMINAL_P
             load_20_dlaa = freq_pu * -self._load20_dlaa_coeff * self._LOAD20_NOMINAL_P
-            self.station_ref.send_direct_point_command(40, 4, 0, load_4_dlaa)
-            self.station_ref.send_direct_point_command(40, 4, 1, load_20_dlaa)
+            self.station_ref.send_direct_point_command(40, 4, 7, load_4_dlaa)
+            self.station_ref.send_direct_point_command(40, 4, 2, load_20_dlaa)
             
 
 def main():

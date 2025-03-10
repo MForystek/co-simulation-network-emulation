@@ -10,4 +10,7 @@ RUN apt update && apt install -y \
     iproute2 \
     curl 
 RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3
-RUN pip install dnp3-python
+RUN pip install dnp3-python \
+    numpy \
+    scipy \
+    osqp

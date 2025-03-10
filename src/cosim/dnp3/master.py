@@ -3,8 +3,8 @@ from dnp3_python.dnp3station.master import MyMaster
 
 
 class MasterStation(MyMaster):    
-    def configure_master(self, soe_handler, outstation_ip, port, concurrency_hint=1):
-        self.clean_master()
+    def configure_master(self, soe_handler, outstation_ip, port, concurrency_hint=1, scan_time=1000):
+        self._clean_master()
         self.soe_handler = soe_handler
         self.manager = asiodnp3.DNP3Manager(concurrency_hint, self.log_handler)
         self.channel = self.manager.AddTCPClient(id="tcpclient",
@@ -19,10 +19,10 @@ class MasterStation(MyMaster):
                                              application=self.master_application,
                                              config=self.stack_config)
         self.fast_scan = self.master.AddClassScan(opendnp3.ClassField().AllClasses(),
-                                                  openpal.TimeDuration().Seconds(1),
+                                                  openpal.TimeDuration().Milliseconds(scan_time),
                                                   opendnp3.TaskConfig().Default())
 
-    def clean_master(self):
+    def _clean_master(self):
         del self.soe_handler
         del self.manager
         del self.channel
