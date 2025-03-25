@@ -10,23 +10,26 @@ from pydnp3.opendnp3 import GroupVariation
 from cosim.mylogging import getLogger
 from cosim.dnp3.soe_handler import SOEHandlerAdjusted
 from cosim.dnp3.lfc.LFC_master import MasterStation
+from cosim.dnp3.lfc.mdlaa.secondary_MDLAA_handler import MDLAAHandlerSecondary
 
 
 log = getLogger(__name__, "logs/MDLAA.log")
+freq_log = getLogger("freqs", "logs/freqs.log", formatter=logging.Formatter("%(message)s"))
+
 
 # System parameters
+NUM_LOAD_BUSES = 18 # number of attackable load buses
+NUM_GEN_BUSES = 10  # number of generator buses
 NOMINAL_PS = np.array([320, 329, 628, 274, 322, 158, 224, 500, 233.8, 522, \
                        247.5, 308.6, 139, 281, 206, 283.5, 7.5, 1104]) # MW
 NOMINAL_FREQ = 60   # HZ
-NUM_LOAD_BUSES = 18 # number of attackable load buses
-NUM_GEN_BUSES = 10  # number of generator buses
 Omega_r = 1.025     # Attack success threshold
 Ta = 1000           # Historical data length (must be >> Tini + Nap)
 Tini = 20           # Initialization window (past steps to match)
 Nap = 40            # Prediction horizon (future steps to optimize)
 Nac = 10            # Control horizon (steps to apply)
-max_attack = 0.75 * NOMINAL_PS    # Max x% load alteration per bus
-min_attack = -0.375 * NOMINAL_PS  # Min x% load alteration per bus
+max_attack = 0.50 * NOMINAL_PS    # Max x% load alteration per bus
+min_attack = -0.25 * NOMINAL_PS  # Min x% load alteration per bus
 
 waiting_iters = -300 # number of iterations to skip due to waiting for the system to settle
 step_time = 100    # ms
@@ -45,8 +48,6 @@ class MDLAASOEHandler(SOEHandlerAdjusted):
         self._R = 1e1 * np.eye(NUM_LOAD_BUSES) # Weight for attack effort penalty
         
         # Constants
-        self._NOMINAL_FREQ = NOMINAL_FREQ
-        self._NOMINAL_Ps = NOMINAL_PS
         self._NUM_OF_ATTACKED_LOADS = 10
         self._MAX_ATTACK_ITER = Ta / Nac
         self._RND_ATTACK_STRENGTH = 0.01 # pu
@@ -100,6 +101,7 @@ class MDLAASOEHandler(SOEHandlerAdjusted):
         for i in range(NUM_GEN_BUSES):
             self._curr_freqs[i] = visitor_index_and_value[i][1] / 1000
         log.info(f"Freqs: {['{0:.5f}'.format(i) for i in self._curr_freqs.tolist()]}")
+        freq_log.info(",".join([str(i) for i in self._curr_freqs]))
             
         
     # ---First phase---
@@ -132,8 +134,8 @@ class MDLAASOEHandler(SOEHandlerAdjusted):
     
     # ---Attack handling---
     def _generate_and_apply_random_attack(self):
-        self._curr_attack_temp = -10 * (self._curr_freqs[5] - self._NOMINAL_FREQ) / self._NOMINAL_FREQ * self._NOMINAL_Ps \
-            + np.random.uniform(-self._RND_ATTACK_STRENGTH, self._RND_ATTACK_STRENGTH, NUM_LOAD_BUSES) * self._NOMINAL_Ps
+        self._curr_attack_temp = -10 * (self._curr_freqs[5] - NOMINAL_FREQ) / NOMINAL_FREQ * NOMINAL_PS \
+            + np.random.uniform(-self._RND_ATTACK_STRENGTH, self._RND_ATTACK_STRENGTH, NUM_LOAD_BUSES) * NOMINAL_PS
         for i in range(NUM_LOAD_BUSES):
             self._curr_attack[i] = self._curr_attack_temp[i]
         self._do_attack()
@@ -179,9 +181,6 @@ class MDLAASOEHandler(SOEHandlerAdjusted):
         HU = self._build_hankel(self._U, Tini + Nap) # Shape: [(Tini+Nap)*num_load_buses, Ta-Tini-Nap+1]
         HY = self._build_hankel(self._Y, Tini + Nap) # Shape: [(Tini+Nap)*num_gen_buses, Ta-Tini-Nap+1]
 
-        log.info("SHAPE HU: " + str(HU.shape))
-        log.info("SHAPE HY: " + str(HY.shape))
-        
         # Split into past/future blocks
         self._Up = HU[:Tini*NUM_LOAD_BUSES, :]
         self._Uf = HU[Tini*NUM_LOAD_BUSES:(Tini+Nap)*NUM_LOAD_BUSES, :]
@@ -341,7 +340,7 @@ class MDLAASOEHandler(SOEHandlerAdjusted):
     # ---Logging---
     def _log_and_skip_if_MDLAA_successful(self):   
         for freq in self._curr_freqs:
-            if freq >= Omega_r * self._NOMINAL_FREQ:
+            if freq >= Omega_r * NOMINAL_FREQ:
                 log.warning(f"MDLAA SUCCESSFUL: {self._curr_freqs}")
                 return True
         return False
@@ -359,37 +358,6 @@ class MDLAASOEHandler(SOEHandlerAdjusted):
         self._avg_osqp_solving_time = (self._avg_osqp_solving_time * self._num_of_osqp_solved + osqp_solving_time) / (self._num_of_osqp_solved + 1)
         self._num_of_osqp_solved += 1
         log.info(f"OSQP solving time avg: {self._avg_osqp_solving_time:.2f} ms, last: {osqp_solving_time:.2f} ms")        
-
-
-
-
-# Secondary master station applying the calculated attacks to second set of loads
-class MDLAAHandlerSecondary(SOEHandlerAdjusted):
-    def __init__(self, log_file_path="logs/soehandler.log", soehandler_log_level=logging.INFO, station_ref=None, attack=np.zeros(NUM_LOAD_BUSES), *args, **kwargs):
-        super().__init__(log_file_path, soehandler_log_level, station_ref, *args, **kwargs)
-        
-        # Constants
-        self._NOMINAL_FREQ = NOMINAL_FREQ
-        self._NOMINAL_Ps = NOMINAL_PS
-        self._NUM_OF_ATTACKED_LOADS = 8
-        
-        # MDLAA attack storage
-        self._curr_attack = attack
-        self._prev_attack = np.zeros(NUM_LOAD_BUSES)
-        
-        
-    def _process_incoming_data(self, info_gv, visitor_ind_val):
-        if info_gv in [GroupVariation.Group30Var6]:          
-            if not (self._curr_attack == self._prev_attack).all():
-                self._prev_attack = self._curr_attack.copy()
-                self._do_attack()
-                
-    
-    def _do_attack(self):
-        loads = self._curr_attack[NUM_LOAD_BUSES - self._NUM_OF_ATTACKED_LOADS:]
-        for i in range(self._NUM_OF_ATTACKED_LOADS):
-            self.station_ref.send_direct_point_command(40, 4, i, float(loads[i]))
-        log.debug(f"Doing DLAA2: {loads}")
 
 
 def main():

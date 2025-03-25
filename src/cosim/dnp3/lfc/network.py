@@ -34,7 +34,7 @@ def main(args):
   
     # Run dnp3 scripts
     info(master.cmd("python3 -m cosim.dnp3.lfc.LFC_master &"))
-    #info(attacker.cmd("python3 -m cosim.dnp3.lfc.MDLAA_controller &"))
+    #info(attacker.cmd("python3 -m cosim.dnp3.lfc.mdlaa.mulproc_MDLAA_controller &"))
     
     net.start()
     CLI(net)
