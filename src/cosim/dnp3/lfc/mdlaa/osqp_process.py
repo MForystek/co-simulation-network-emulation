@@ -36,9 +36,13 @@ class OSQPSolver:
         self._Yp = HY[:Tini*NUM_GEN_BUSES, :]
         self._Yf = HY[Tini*NUM_GEN_BUSES:(Tini+Nap)*NUM_GEN_BUSES, :]
         
+        Q = Q_weight * np.eye(Nap * NUM_GEN_BUSES)
+        R = R_weight * np.eye(Nap * NUM_LOAD_BUSES)
+        Omega_r = Omega_r_weight * NOMINAL_FREQ * np.ones(Nap * NUM_GEN_BUSES)
+        
         # Construct OSQP parameters
-        self._H = self._Yf.T @ np.kron(np.eye(Nap), Q) @ self._Yf + self._Uf.T @ np.kron(np.eye(Nap), R) @ self._Uf
-        self._f = -self._Yf.T @ np.kron(np.eye(Nap), Q) @ np.tile(Omega_r, (Nap * NUM_GEN_BUSES, 1))
+        self._H = self._Yf.T @ Q @ self._Yf + self._Uf.T @ R @ self._Uf
+        self._f = -self._Yf.T @ Q @ Omega_r
         self._osqp_parameters_prepared = True
             
     

@@ -194,7 +194,7 @@ class MDLAASOEHandler(SOEHandlerAdjusted):
     # ---Logging---
     def _log_and_skip_if_MDLAA_successful(self):   
         for freq in self._curr_freqs:
-            if freq >= Omega_r * NOMINAL_FREQ:
+            if freq >= Omega_r_weight * NOMINAL_FREQ:
                 log.warning(f"MDLAA SUCCESSFUL: {self._curr_freqs}")
                 return True
         return False
