@@ -31,14 +31,14 @@ class OSQPSolver:
         self._assert_Hankel_full_rank(np.vstack([HU, HY]))
 
         # Split into past/future blocks
-        self._Up = HU[:Tini*NUM_LOAD_BUSES, :]
-        self._Uf = HU[Tini*NUM_LOAD_BUSES:(Tini+Nap)*NUM_LOAD_BUSES, :]
-        self._Yp = HY[:Tini*NUM_GEN_BUSES, :]
-        self._Yf = HY[Tini*NUM_GEN_BUSES:(Tini+Nap)*NUM_GEN_BUSES, :]
+        self._Up = HU[:Tini*NUM_ATTACKED_LOAD_BUSES, :]
+        self._Uf = HU[Tini*NUM_ATTACKED_LOAD_BUSES:(Tini+Nap)*NUM_ATTACKED_LOAD_BUSES, :]
+        self._Yp = HY[:Tini*TOTAL_NUM_GEN_BUSES, :]
+        self._Yf = HY[Tini*TOTAL_NUM_GEN_BUSES:(Tini+Nap)*TOTAL_NUM_GEN_BUSES, :]
         
-        Q = Q_weight * np.eye(Nap * NUM_GEN_BUSES)
-        R = R_weight * np.eye(Nap * NUM_LOAD_BUSES)
-        Omega_r = Omega_r_weight * NOMINAL_FREQ * np.ones(Nap * NUM_GEN_BUSES)
+        Q = Q_weight * np.eye(Nap * TOTAL_NUM_GEN_BUSES)
+        R = R_weight * np.eye(Nap * NUM_ATTACKED_LOAD_BUSES)
+        Omega_r = Omega_r_weight * NOMINAL_FREQ * np.ones(Nap * TOTAL_NUM_GEN_BUSES)
         
         # Construct OSQP parameters
         self._H = self._Yf.T @ Q @ self._Yf + self._Uf.T @ R @ self._Uf
@@ -130,7 +130,7 @@ class OSQPSolver:
     
     def _extract_optimal_attacks(self, g_optimal):
         log.info("OSQP Solved successfully")
-        u_opt = (self._Uf @ g_optimal).reshape(Nap, NUM_LOAD_BUSES)
+        u_opt = (self._Uf @ g_optimal).reshape(Nap, NUM_ATTACKED_LOAD_BUSES)
         optimal_attacks_to_apply = u_opt[:Nac, :]
         return optimal_attacks_to_apply
        

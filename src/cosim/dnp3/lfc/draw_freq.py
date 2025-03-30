@@ -17,7 +17,7 @@ def draw_freq(freqs):
     plt.tight_layout()
     plt.show()
 
-with open('./src/logs/freqs.log') as f:
+with open('./logs/freqs.log') as f:
     freqs = [line.strip().split(",") for line in f.readlines()]
     freqs = np.array(freqs, dtype=float).T
     draw_freq(freqs)

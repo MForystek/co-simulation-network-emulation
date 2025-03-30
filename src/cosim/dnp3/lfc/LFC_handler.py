@@ -79,9 +79,9 @@ class LFCHandler:
         tl_32_T05 = visitor_index_and_value[16][1]
         tl_32_T02 = visitor_index_and_value[17][1]
         
-        self._tie_lines[0] = (tl_13_T19 + tl_12_T21 - 143.442) / 100
-        self._tie_lines[1] = (tl_21_T21 + tl_23_T02 + tl_23_T05 - 247.21) / 100
-        self._tie_lines[2] = (tl_31_T19 + tl_32_T02 + tl_32_T05 + 389.5655) / 100
+        self._tie_lines[0] = (tl_13_T19 + tl_12_T21 - 225.10234) / 100
+        self._tie_lines[1] = (tl_21_T21 + tl_23_T02 + tl_23_T05 + 12.4674) / 100
+        self._tie_lines[2] = (tl_31_T19 + tl_32_T02 + tl_32_T05 + 211.73267) / 100
         _log.info(f"TL 1: {self._tie_lines[0]} || TL 2: {self._tie_lines[1]} || TL 3: {self._tie_lines[2]}")
     
     
@@ -94,15 +94,15 @@ class LFCHandler:
         
         speed_6 = visitor_index_and_value[5][1] # for ACE1_1
         self._update_LFC_controller(1, speed_6, time_diff_in_sec)
-        self._ACE1_1 = self._integral1 + 0.02857 #0.02957
+        self._ACE1_1 = self._integral1 #0.02857
             
         speed_1 = visitor_index_and_value[0][1] # for ACE2_1
         self._update_LFC_controller(2, speed_1, time_diff_in_sec)
-        self._ACE2_1 = self._integral2 + 0.02574 #0.02974
+        self._ACE2_1 = self._integral2 #0.02574
         
         speed_3 = visitor_index_and_value[2][1] # for ACE3_1    
         self._update_LFC_controller(3, speed_3, time_diff_in_sec)
-        self._ACE3_1 = self._integral3 + 0.02371 #0.01971
+        self._ACE3_1 = self._integral3 #0.02371
         
         _log.info(f"Gen 1 | Speed: {speed_1} || Gen 3 | Speed: {speed_3} || Gen 6 | Speed: {speed_6}")
         _log.info(f"ACE1_1: {self._ACE1_1} || ACE2_1: {self._ACE2_1} || ACE3_1: {self._ACE3_1}")    
