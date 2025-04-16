@@ -17,7 +17,7 @@ class OSQPSolver:
         self._osqp_parameters_prepared = False
         self._osqp_constraints_constructed = False
         
-        self._num_of_osqp_solved = 0      # excluding the first calculation
+        self._num_of_osqp_solved = 0      # we won't count the first calculation
         self._avg_osqp_solving_time = 0.0
     
         
@@ -42,7 +42,7 @@ class OSQPSolver:
         
         # Construct OSQP parameters
         self._H = self._Yf.T @ Q @ self._Yf + self._Uf.T @ R @ self._Uf
-        self._f = -self._Yf.T @ Q @ Omega_r
+        self._f = -2 * self._Yf.T @ Q @ Omega_r
         self._osqp_parameters_prepared = True
             
     

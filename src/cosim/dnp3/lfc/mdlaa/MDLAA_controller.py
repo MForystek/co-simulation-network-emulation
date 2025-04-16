@@ -76,7 +76,7 @@ class MDLAASOEHandler(SOEHandlerAdjusted):
     
     def _read_frequencies(self, visitor_index_and_value):
         for i in range(TOTAL_NUM_GEN_BUSES):
-            self._curr_freqs[i] = visitor_index_and_value[i][1] / 1000
+            self._curr_freqs[i] = visitor_index_and_value[i][1] * MILLI
         log.info(f"Freqs: {['{0:.5f}'.format(i) for i in self._curr_freqs.tolist()]}")
         freq_log.info(",".join([str(i) for i in self._curr_freqs]))
             
