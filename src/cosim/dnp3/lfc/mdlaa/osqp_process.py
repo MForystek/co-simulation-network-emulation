@@ -38,7 +38,7 @@ class OSQPSolver:
         
         Q = Q_weight * np.eye(Nap * TOTAL_NUM_GEN_BUSES)
         R = R_weight * np.eye(Nap * NUM_ATTACKED_LOAD_BUSES)
-        Omega_r = Omega_r_weight * NOMINAL_FREQ * np.ones(Nap * TOTAL_NUM_GEN_BUSES)
+        Omega_r = Omega_r_weight * np.ones(Nap * TOTAL_NUM_GEN_BUSES)
         
         # Construct OSQP parameters
         self._H = self._Yf.T @ Q @ self._Yf + self._Uf.T @ R @ self._Uf
@@ -73,8 +73,8 @@ class OSQPSolver:
         self._ub_eq = self._lb_eq 
         # min_attack <= Uf * g <= max_attack (repeated for N steps)
         self._A_ineq = self._Uf
-        self._ub_ineq = np.tile(max_attack, Nap) # Upper bound - twice the nominal power
-        self._lb_ineq = np.tile(min_attack, Nap) # Lower bound - half the nominal power
+        self._ub_ineq = np.tile(max_attack, Nap) # Upper bound for controlled load
+        self._lb_ineq = np.tile(min_attack, Nap) # Lower bound for controlled load
         # Combine constraints
         self._A = np.vstack([self._A_eq, self._A_ineq])
         self._lb = np.hstack([self._lb_eq, self._lb_ineq])

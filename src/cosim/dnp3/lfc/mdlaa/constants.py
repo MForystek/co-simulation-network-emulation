@@ -18,11 +18,11 @@ Ta = 1000               # Historical data length (must be >> Tini + Nap)
 Tini = 20               # Initialization window (past steps to match)
 Nap = 40                # Prediction horizon (future steps to optimize)
 Nac = 10                # Control horizon (steps to apply)
-Omega_r_weight = 1.025  # Attack success threshold
+Omega_r_weight = 1.025  # Attack success threshold over 1 p.u.
 Q_weight = 1e5          # Weight for frequency deviation penalty
 R_weight = 1e1          # Weight for attack effort penalty
-max_attack = 0.4 * NOMINAL_PS # Max x% load alteration per bus
-min_attack = -0.4 * NOMINAL_PS # Min x% load alteration per bus
+max_attack = (1 + 0.4) * np.ones(TOTAL_NUM_LOAD_BUSES) # Max x% load alteration per bus
+min_attack = (1 - 0.4) * np.ones(TOTAL_NUM_LOAD_BUSES) # Min x% load alteration per bus
 
 
 step_time = 100    # ms

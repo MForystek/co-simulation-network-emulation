@@ -22,7 +22,7 @@ freq_log = getLogger("freqs", "logs/freqs.log", level=logging.WARNING, formatter
         
 class MDLAASOEHandler(SOEHandlerAdjusted):
     def __init__(self, log_file_path="logs/soehandler.log", soehandler_log_level=logging.INFO, station_ref=None,
-                 attacks=np.zeros(NUM_ATTACKED_LOAD_BUSES), parent_pipe: Connection=None, *args, **kwargs):
+                 attacks=np.ones(NUM_ATTACKED_LOAD_BUSES), parent_pipe: Connection=None, *args, **kwargs):
         super().__init__(log_file_path, soehandler_log_level, station_ref, *args, **kwargs)
         # Constants
         self._NUM_OF_ATTACKED_LOADS = NUM_OF_LOADS_PRIMARY_HANDLER
@@ -30,8 +30,8 @@ class MDLAASOEHandler(SOEHandlerAdjusted):
         self._RND_ATTACK_STRENGTH = 0.01 # pu
         
         # MDLAA freq and attack storage
-        self._curr_freqs = np.zeros(TOTAL_NUM_GEN_BUSES)
-        self._curr_attack_temp = np.zeros(NUM_ATTACKED_LOAD_BUSES)
+        self._curr_freqs = np.ones(TOTAL_NUM_GEN_BUSES)
+        self._curr_attack_temp = np.ones(NUM_ATTACKED_LOAD_BUSES)
         self._curr_attack = attacks # Used to apply the attack through the second master station
         
         # Counters
@@ -40,14 +40,14 @@ class MDLAASOEHandler(SOEHandlerAdjusted):
         self._attack_to_apply = -1
     
         # History of max and min attacks
-        self._all_max_attack = np.zeros(NUM_ATTACKED_LOAD_BUSES)
-        self._all_min_attack = np.zeros(NUM_ATTACKED_LOAD_BUSES)
+        self._all_max_attack = np.ones(NUM_ATTACKED_LOAD_BUSES)
+        self._all_min_attack = np.ones(NUM_ATTACKED_LOAD_BUSES)
     
         # Data storage for historical attacks and frequencies
         self._U = np.empty([NUM_ATTACKED_LOAD_BUSES, Ta])
         self._Y = np.empty([TOTAL_NUM_GEN_BUSES, Ta])
-        self._attack_history = np.zeros([NUM_ATTACKED_LOAD_BUSES, Tini])  # Stores Tini past attacks
-        self._freq_history = np.zeros([TOTAL_NUM_GEN_BUSES, Tini])     # Stores Tini past frequencies 
+        self._attack_history = np.ones([NUM_ATTACKED_LOAD_BUSES, Tini]) # Stores Tini past attacks
+        self._freq_history = np.ones([TOTAL_NUM_GEN_BUSES, Tini])       # Stores Tini past frequencies 
         
         self._parent_pipe = parent_pipe
     
@@ -79,6 +79,7 @@ class MDLAASOEHandler(SOEHandlerAdjusted):
             self._curr_freqs[i] = visitor_index_and_value[i][1] * MILLI
         log.info(f"Freqs: {['{0:.5f}'.format(i) for i in self._curr_freqs.tolist()]}")
         freq_log.info(",".join([str(i) for i in self._curr_freqs]))
+        self._curr_freqs = self._curr_freqs / NOMINAL_FREQ
             
         
     # ---First phase---
@@ -100,8 +101,7 @@ class MDLAASOEHandler(SOEHandlerAdjusted):
     
     # ---Attack handling---
     def _generate_and_apply_random_attack(self):
-        self._curr_attack_temp = -10 * (self._curr_freqs[5] - NOMINAL_FREQ) / NOMINAL_FREQ * NOMINAL_PS \
-            + np.random.uniform(-self._RND_ATTACK_STRENGTH, self._RND_ATTACK_STRENGTH, NUM_ATTACKED_LOAD_BUSES) * NOMINAL_PS
+        self._curr_attack_temp = 1 + np.random.uniform(-self._RND_ATTACK_STRENGTH, self._RND_ATTACK_STRENGTH, NUM_ATTACKED_LOAD_BUSES)
         for i in range(NUM_ATTACKED_LOAD_BUSES):
             self._curr_attack[i] = self._curr_attack_temp[i]
         self._do_attack()
@@ -133,10 +133,10 @@ class MDLAASOEHandler(SOEHandlerAdjusted):
         if self._measurement_iter < Ta:
             self._U[:, self._measurement_iter] = self._curr_attack_temp
             log.debug(f"Attack loads pu: {self._curr_attack_temp.tolist()}")
-            log.debug(f"Loads: {['{0:.4f}'.format(i) for i in self._U[:, self._measurement_iter].tolist()]}")    
+            log.debug(f"Loads: {['{0:.4f}'.format(i) for i in self._U[:, self._measurement_iter].tolist() * NOMINAL_PS]}")    
         if self._measurement_iter > 0:
             self._Y[:, self._measurement_iter-1] = self._curr_freqs
-            log.debug(f"Freqs: {['{0:.5f}'.format(i) for i in self._Y[:, self._measurement_iter-1].tolist()]}")  
+            log.debug(f"Freqs: {['{0:.5f}'.format(i) for i in self._Y[:, self._measurement_iter-1].tolist() * NOMINAL_FREQ]}")  
      
     
     # ---Second phase---
@@ -179,7 +179,7 @@ class MDLAASOEHandler(SOEHandlerAdjusted):
         # Assign one by one to not overwrite the _curr_attack list used in the second master station
         for i in range(NUM_ATTACKED_LOAD_BUSES):
             self._curr_attack[i] = self._curr_attack_temp[i]
-        log.debug(f"Success, attack: {[float(load) for load in self._curr_attack]}")
+        log.debug(f"Success, attack: {[float(load) for load in self._curr_attack] * NOMINAL_PS}")
         self._do_attack()
 
 
@@ -194,8 +194,8 @@ class MDLAASOEHandler(SOEHandlerAdjusted):
     # ---Logging---
     def _log_and_skip_if_MDLAA_successful(self):   
         for freq in self._curr_freqs:
-            if freq >= Omega_r_weight * NOMINAL_FREQ:
-                log.warning(f"MDLAA SUCCESSFUL: {self._curr_freqs}")
+            if freq >= Omega_r_weight:
+                log.warning(f"MDLAA SUCCESSFUL: {self._curr_freqs * NOMINAL_FREQ}")
                 return True
         return False
     
@@ -205,8 +205,8 @@ class MDLAASOEHandler(SOEHandlerAdjusted):
                 self._all_max_attack[i] = self._curr_attack[i]
             elif self._curr_attack[i] < self._all_min_attack[i]:
                 self._all_min_attack[i] = self._curr_attack[i]
-        log.debug(f"Max attacks: {self._all_max_attack.tolist()}")
-        log.debug(f"Min attacks: {self._all_min_attack.tolist()}")
+        log.debug(f"Max attacks: {self._all_max_attack.tolist() * NOMINAL_PS}")
+        log.debug(f"Min attacks: {self._all_min_attack.tolist() * NOMINAL_PS}")
 
 
 def main():
@@ -216,7 +216,7 @@ def main():
     outstation_ip2 = "172.24.14.213"
     port2 = 20002
     
-    loads_coeffs = np.zeros(NUM_ATTACKED_LOAD_BUSES)
+    loads_coeffs = np.ones(NUM_ATTACKED_LOAD_BUSES)
       
     parent_pipe, child_pipe = Pipe()
     osqp_process = Process(target=solving_osqp, args=(child_pipe,), daemon=True)

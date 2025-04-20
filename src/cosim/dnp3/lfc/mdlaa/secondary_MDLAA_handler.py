@@ -20,7 +20,7 @@ class MDLAAHandlerSecondary(SOEHandlerAdjusted):
         
         # MDLAA attack storage
         self._curr_attack = attack
-        self._prev_attack = np.zeros(NUM_ATTACKED_LOAD_BUSES)
+        self._prev_attack = np.ones(NUM_ATTACKED_LOAD_BUSES)
         
         
     def _process_incoming_data(self, info_gv, visitor_ind_val):
