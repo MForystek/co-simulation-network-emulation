@@ -2,7 +2,7 @@ import time
 import numpy as np
 import osqp
 
-from multiprocessing.connection import Connection
+from multiprocessing import Queue
 from scipy.sparse import csc_matrix
 
 from cosim.mylogging import getLogger
@@ -28,6 +28,7 @@ class OSQPSolver:
         
         HU = self._build_hankel(U, Tini + Nap) # Shape: [(Tini+Nap)*num_load_buses, Ta-Tini-Nap+1]
         HY = self._build_hankel(Y, Tini + Nap) # Shape: [(Tini+Nap)*num_gen_buses, Ta-Tini-Nap+1]
+        # TODO: Check if asserting only for HU is enough (in article it says only p_d)
         self._assert_Hankel_full_rank(np.vstack([HU, HY]))
 
         # Split into past/future blocks
@@ -41,7 +42,7 @@ class OSQPSolver:
         Omega_r = Omega_r_weight * np.ones(Nap * TOTAL_NUM_GEN_BUSES)
         
         # Construct OSQP parameters
-        self._H = self._Yf.T @ Q @ self._Yf + self._Uf.T @ R @ self._Uf
+        self._H = 2 * self._Yf.T @ Q @ self._Yf + self._Uf.T @ R @ self._Uf
         self._f = -2 * self._Yf.T @ Q @ Omega_r
         self._osqp_parameters_prepared = True
             
@@ -142,23 +143,27 @@ class OSQPSolver:
         log.info(f"OSQP solving time avg: {self._avg_osqp_solving_time:.0f} ms, last: {osqp_solving_time:.0f} ms")
         
 
-def solving_osqp(child_pipe: Connection):    
+def osqp_process(master_to_osqp:Queue, osqp_to_master:Queue):    
     osqp_solver = OSQPSolver()
     
     # Read the first data to initialize the solver
-    setup_data = child_pipe.recv()
+    setup_data = master_to_osqp.get()
     # Initialize the solver
     osqp_solver.prepare_OSQP_parameters(setup_data['U'], setup_data['Y'])
     osqp_solver.construct_constraints()
     result = osqp_solver.setup_solve()
     # Sned the result of first calculation
-    child_pipe.send(result)
+    osqp_to_master.put(result)
     
     while True:
-        if not child_pipe.poll():
-            time.sleep(step_time * MILLI / 2)
-            continue
+        data = master_to_osqp.get()
+        if data == -1:
+            log.info("Exiting OSQP process.")
+            exit(0)
         
-        data = child_pipe.recv()
         result = osqp_solver.update_solve(data['attack_history'], data['freq_history'])
-        child_pipe.send(result)
+        try:
+            osqp_to_master.put(result)
+        except (EOFError, BrokenPipeError):
+            log.info("Exiting OSQP process.")
+            exit(0)

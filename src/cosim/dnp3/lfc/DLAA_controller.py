@@ -12,8 +12,8 @@ class DLAASOEHandler(SOEHandlerAdjusted):
         super().__init__(log_file_path, soehandler_log_level, station_ref, *args, **kwargs)
         self._NOMINAL_FREQ = 60 # HZ 
         
-        self._load4_dlaa_coeff = 70
-        self._load20_dlaa_coeff = 70
+        self._load4_dlaa_coeff = 60
+        self._load20_dlaa_coeff = 60
                 
     
     def _process_incoming_data(self, info_gv, visitor_index_and_value):

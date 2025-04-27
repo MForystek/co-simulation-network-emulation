@@ -1,6 +1,6 @@
 from pydnp3 import asiodnp3, opendnp3, openpal
-from dnp3_python.dnp3station.master import MyMaster
-
+#from dnp3_python.dnp3station.master import MyMaster
+from cosim.dnp3.lfc.mdlaa.intime.master import MyMaster
 
 class MasterStation(MyMaster):    
     def configure_master(self, soe_handler, outstation_ip, port, concurrency_hint=1, scan_time=1000):
