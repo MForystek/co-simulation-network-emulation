@@ -24,5 +24,5 @@ def master2_process(main_to_master2: Queue):
         if type(data) == int and data == -1:
             exit(0)
         
-        for i in range(data):
+        for i in range(len(data)):
             loads_coeffs[i] = data[i]

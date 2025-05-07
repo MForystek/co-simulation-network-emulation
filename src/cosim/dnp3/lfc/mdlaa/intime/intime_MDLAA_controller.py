@@ -124,11 +124,10 @@ class MDLAAHandler:
 
 
     def _send_attack_to_outstation(self):
-        loads = self._curr_attack[:self._NUM_OF_ATTACKED_LOADS]
         for i in range(self._NUM_OF_ATTACKED_LOADS):
-            self._main_to_master1.put((40, 4, i, float(loads[i])))
-        self._main_to_master2.put(loads)
-        log.debug(f"Doing DLAA: {loads}")
+            self._main_to_master1.put((40, 4, i, float(self._curr_attack[i])))
+        self._main_to_master2.put(self._curr_attack)
+        log.debug(f"Doing DLAA: {self._curr_attack.tolist()}")
     
     
     def _collect_measurements(self):
