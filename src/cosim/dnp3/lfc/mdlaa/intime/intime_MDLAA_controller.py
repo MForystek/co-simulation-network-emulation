@@ -54,8 +54,7 @@ class MDLAAHandler:
         if incoming_data is None:
             return
         
-        freqs = [incoming_data[key][1] for key in range(TOTAL_NUM_GEN_BUSES)]
-        self._read_frequencies(freqs)
+        self._read_frequencies(incoming_data)
         
         if self._is_MDLAA_successful():
             return 
@@ -76,7 +75,8 @@ class MDLAAHandler:
         self._execute_MDLAA_third_phase()
 
     
-    def _read_frequencies(self, freqs):
+    def _read_frequencies(self, incoming_data):
+        freqs = [incoming_data[key][1] for key in range(TOTAL_NUM_GEN_BUSES)]
         for i in range(TOTAL_NUM_GEN_BUSES):
             self._curr_freqs[i] = freqs[i] * MILLI
         log.info(f"Freqs: {['{0:.5f}'.format(i) for i in self._curr_freqs.tolist()]}")
@@ -91,44 +91,12 @@ class MDLAAHandler:
             self._collect_measurements()
         self._measurement_iter += 1           
     
-    def _update_freq_history(self):
-        self._freq_history = np.roll(self._freq_history, -1, axis=1)
-        self._freq_history[:, -1] = self._curr_freqs
-    
-    def _update_attack_history(self):
-        self._attack_history = np.roll(self._attack_history, -1, axis=1)
-        self._attack_history[:, -1] = self._curr_attack
-    
-    
-    # ---Attack handling---
     def _generate_and_apply_random_attack(self):
         self._curr_attack = 1 + np.sin(self._sinus_angles) * self._sinus_gain \
             + np.random.uniform(-self._RND_ATTACK_STRENGTH, self._RND_ATTACK_STRENGTH, NUM_ATTACKED_LOAD_BUSES)
         self._sinus_angles += np.pi / 50
         self._sinus_gain += 0.0001
         self._do_attack()
-    
-    def _do_attack(self):
-        self._correct_attacks_beyond_bounds()
-        self._update_and_log_all_time_max_min_attacks()
-        self._send_attack_to_outstation()
-    
-    def _correct_attacks_beyond_bounds(self):
-        for i in range(NUM_ATTACKED_LOAD_BUSES):
-            if self._curr_attack[i] > max_attack[i]:
-                log.debug(f"Attack {i} is above the max_attack: {self._curr_attack[i]} > {max_attack[i]}")
-                self._curr_attack[i] = max_attack[i]
-            elif self._curr_attack[i] < min_attack[i]:
-                log.debug(f"Attack {i} is below the min_attack: {self._curr_attack[i]} < {min_attack[i]}")
-                self._curr_attack[i] = min_attack[i] 
-
-
-    def _send_attack_to_outstation(self):
-        for i in range(self._NUM_OF_ATTACKED_LOADS):
-            self._main_to_master1.put((40, 4, i, float(self._curr_attack[i])))
-        self._main_to_master2.put(self._curr_attack)
-        log.debug(f"Doing DLAA: {self._curr_attack.tolist()}")
-    
     
     def _collect_measurements(self):
         # Freqs delayed by one step and attacks ended one step faster,
@@ -175,15 +143,43 @@ class MDLAAHandler:
             self._attack_to_apply = -1
         else:
             self._attack_to_apply += 1
-     
     
     def _apply_predicted_attack(self):
         self._curr_attack = self._optimal_attacks_to_apply[self._attack_to_apply, :]
-        # Assign one by one to not overwrite the _curr_attack list used in the second master station
-        for i in range(NUM_ATTACKED_LOAD_BUSES):
-            self._curr_attack[i] = self._curr_attack[i]
         log.debug(f"Success, attack: {[float(load) for load in self._curr_attack] * NOMINAL_PS}")
         self._do_attack()
+
+
+    # ---Attack handling---
+    def _do_attack(self):
+        self._correct_attacks_beyond_bounds()
+        self._update_and_log_all_time_max_min_attacks()
+        self._send_attack_to_outstation()
+    
+    def _correct_attacks_beyond_bounds(self):
+        for i in range(NUM_ATTACKED_LOAD_BUSES):
+            if self._curr_attack[i] > max_attack[i]:
+                log.debug(f"Attack {i} is above the max_attack: {self._curr_attack[i]} > {max_attack[i]}")
+                self._curr_attack[i] = max_attack[i]
+            elif self._curr_attack[i] < min_attack[i]:
+                log.debug(f"Attack {i} is below the min_attack: {self._curr_attack[i]} < {min_attack[i]}")
+                self._curr_attack[i] = min_attack[i] 
+
+    def _send_attack_to_outstation(self):
+        for i in range(self._NUM_OF_ATTACKED_LOADS):
+            self._main_to_master1.put((40, 4, i, float(self._curr_attack[i])))
+        self._main_to_master2.put(self._curr_attack)
+        log.debug(f"Doing DLAA: {self._curr_attack.tolist()}")
+
+
+    # ---History updates ---
+    def _update_freq_history(self):
+        self._freq_history = np.roll(self._freq_history, -1, axis=1)
+        self._freq_history[:, -1] = self._curr_freqs
+    
+    def _update_attack_history(self):
+        self._attack_history = np.roll(self._attack_history, -1, axis=1)
+        self._attack_history[:, -1] = self._curr_attack
 
 
     # ---Failure handling---    
