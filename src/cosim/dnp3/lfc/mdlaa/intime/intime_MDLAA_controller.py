@@ -1,10 +1,7 @@
 import numpy as np
 import logging
-import time
 
 from multiprocessing import Process, Manager, Queue
-
-from pydnp3.opendnp3 import GroupVariation
 
 from cosim.mylogging import getLogger
 from cosim.dnp3.lfc.mdlaa.constants import *
@@ -15,23 +12,21 @@ from cosim.dnp3.lfc.mdlaa.intime.master2_process import master2_process
 
 # Loggers
 log = getLogger(__name__, "logs/MDLAA.log", level=logging.INFO)
-freq_log = getLogger("freqs", "logs/freqs.log", level=logging.WARNING, formatter=logging.Formatter("%(message)s"))
 
         
 class MDLAAHandler:
-    def __init__(self, main_to_master1: Queue, main_to_master2: Queue, master_to_osqp:Queue, osqp_to_master:Queue):
+    def __init__(self, main_to_master1: Queue, main_to_master2: Queue, main_to_osqp:Queue, osqp_to_main:Queue):
         self._main_to_master1 = main_to_master1
         self._main_to_master2 = main_to_master2
         
         # Constants
         self._NUM_OF_ATTACKED_LOADS = NUM_OF_LOADS_PRIMARY_HANDLER
         self._MAX_ATTACK_ITER = Ta / Nac
-        self._RND_ATTACK_STRENGTH = 0.01 # pu
+        self._RND_ATTACK_STRENGTH = 0.001 # pu
         
         # MDLAA freq and attack storage
         self._curr_freqs = np.ones(TOTAL_NUM_GEN_BUSES)
-        self._curr_attack = np.ones(NUM_ATTACKED_LOAD_BUSES)
-        self._curr_attack = np.ones(NUM_ATTACKED_LOAD_BUSES, dtype=np.float32) # Used to apply the attack through the second master station
+        self._curr_attack = np.ones(NUM_ATTACKED_LOAD_BUSES, dtype=np.float32) # Used also to apply the attack through the second master station
         
         # Counters
         self._measurement_iter = waiting_iters
@@ -48,8 +43,11 @@ class MDLAAHandler:
         self._attack_history = np.ones([NUM_ATTACKED_LOAD_BUSES, Tini]) # Stores Tini past attacks
         self._freq_history = np.ones([TOTAL_NUM_GEN_BUSES, Tini])       # Stores Tini past frequencies 
         
-        self._master_to_osqp = master_to_osqp
-        self._osqp_to_master = osqp_to_master
+        self._master_to_osqp = main_to_osqp
+        self._osqp_to_master = osqp_to_main
+        
+        self._sinus_gain = 0.001
+        self._sinus_angles = np.random.uniform(0, 2 * np.pi, NUM_ATTACKED_LOAD_BUSES)
     
     
     def process_data(self, incoming_data):
@@ -58,8 +56,9 @@ class MDLAAHandler:
         
         freqs = [incoming_data[key][1] for key in range(TOTAL_NUM_GEN_BUSES)]
         self._read_frequencies(freqs)
-        if self._log_and_skip_if_MDLAA_successful():
-            return
+        
+        if self._is_MDLAA_successful():
+            return 
         
         # MDLAA first phase - collect data
         if self._measurement_iter < Ta:
@@ -81,7 +80,6 @@ class MDLAAHandler:
         for i in range(TOTAL_NUM_GEN_BUSES):
             self._curr_freqs[i] = freqs[i] * MILLI
         log.info(f"Freqs: {['{0:.5f}'.format(i) for i in self._curr_freqs.tolist()]}")
-        freq_log.info(",".join([str(i) for i in self._curr_freqs]))
         self._curr_freqs = self._curr_freqs / NOMINAL_FREQ
             
         
@@ -104,8 +102,10 @@ class MDLAAHandler:
     
     # ---Attack handling---
     def _generate_and_apply_random_attack(self):
-        # TODO Change the attack to the increasing sinusoid instead
-        self._curr_attack = 1 + np.random.uniform(-self._RND_ATTACK_STRENGTH, self._RND_ATTACK_STRENGTH, NUM_ATTACKED_LOAD_BUSES)
+        self._curr_attack = 1 + np.sin(self._sinus_angles) * self._sinus_gain \
+            + np.random.uniform(-self._RND_ATTACK_STRENGTH, self._RND_ATTACK_STRENGTH, NUM_ATTACKED_LOAD_BUSES)
+        self._sinus_angles += np.pi / 50
+        self._sinus_gain += 0.0001
         self._do_attack()
     
     def _do_attack(self):
@@ -150,8 +150,8 @@ class MDLAAHandler:
         
         if self._ka == Tini:
             self._master_to_osqp.put({'U': self._U, 'Y': self._Y})
-            self._attack_history = self._U[:, Nac:Tini+Nac]
-            self._freq_history = self._Y[:, Nac:Tini+Nac]
+            self._attack_history = self._U[:, :Tini]
+            self._freq_history = self._Y[:, :Tini]
         self._master_to_osqp.put({'attack_history': self._attack_history, 'freq_history': self._freq_history})
         OSQP_result = self._osqp_to_master.get()
         self._ka += Nac
@@ -198,7 +198,7 @@ class MDLAAHandler:
 
 
     # ---Logging---
-    def _log_and_skip_if_MDLAA_successful(self):   
+    def _is_MDLAA_successful(self):   
         for freq in self._curr_freqs:
             if freq >= Omega_r_weight:
                 log.warning(f"MDLAA SUCCESSFUL: {self._curr_freqs * NOMINAL_FREQ}")
@@ -236,14 +236,14 @@ def main():
     osqp.start()
     log.info("Processes started")
     
-    mdlaa_handler = MDLAAHandler(main_to_master1=main_to_master1, main_to_master2=main_to_master2, master_to_osqp=master_to_osqp, osqp_to_master=osqp_to_master)
+    mdlaa_handler = MDLAAHandler(main_to_master1=main_to_master1, main_to_master2=main_to_master2, main_to_osqp=master_to_osqp, osqp_to_main=osqp_to_master)
     
     while True:
         data = master1_to_main.get()
-        if data == -1:
+        if type(data) == int and data == -1:
             break
         mdlaa_handler.process_data(data)
-    
+        
     master1.join()
     master2.join()
     osqp.join()

@@ -3,8 +3,7 @@ import sys
 import time
 
 from pydnp3 import opendnp3, openpal, asiopal, asiodnp3
-# from visitors import *
-from cosim.dnp3.lfc.mdlaa.intime.visitors import *
+from dnp3_python.dnp3station.visitors import *
 from typing import Callable, Union, Dict, List, Optional, Tuple
 from pydnp3.opendnp3 import GroupVariation, GroupVariationID
 
@@ -20,15 +19,14 @@ stdout_stream = logging.StreamHandler(sys.stdout)
 stdout_stream.setFormatter(logging.Formatter('%(asctime)s\t%(name)s\t%(levelname)s\t%(message)s'))
 
 _log = logging.getLogger(__name__)
-_log.addHandler(logging.FileHandler("/app/halo.log"))
-_log.addHandler(stdout_stream)
-_log.setLevel(logging.DEBUG)
+# _log.addHandler(stdout_stream)
+# _log.setLevel(logging.DEBUG)
 # _log.setLevel(logging.ERROR)
-#_log.setLevel(logging.INFO)
+_log.setLevel(logging.INFO)
 
-from cosim.dnp3.lfc.mdlaa.intime.station_utils import MyLogger, AppChannelListener, SOEHandler
-from cosim.dnp3.lfc.mdlaa.intime.station_utils import parsing_gvid_to_gvcls, parsing_gv_to_mastercmdtype
-from cosim.dnp3.lfc.mdlaa.intime.station_utils import collection_callback, command_callback, restart_callback
+from dnp3_python.dnp3station.station_utils import MyLogger, AppChannelListener, SOEHandler
+from dnp3_python.dnp3station.station_utils import parsing_gvid_to_gvcls, parsing_gv_to_mastercmdtype
+from dnp3_python.dnp3station.station_utils import collection_callback, command_callback, restart_callback
 import datetime
 
 # alias DbPointVal

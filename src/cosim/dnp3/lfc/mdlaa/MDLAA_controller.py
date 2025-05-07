@@ -16,7 +16,6 @@ from cosim.dnp3.lfc.mdlaa.osqp_process import osqp_process
 
 # Loggers
 log = getLogger(__name__, "logs/MDLAA.log", level=logging.INFO)
-freq_log = getLogger("freqs", "logs/freqs.log", level=logging.WARNING, formatter=logging.Formatter("%(message)s"))
 
         
 class MDLAASOEHandler(SOEHandlerAdjusted):
@@ -26,7 +25,7 @@ class MDLAASOEHandler(SOEHandlerAdjusted):
         # Constants
         self._NUM_OF_ATTACKED_LOADS = NUM_OF_LOADS_PRIMARY_HANDLER
         self._MAX_ATTACK_ITER = Ta / Nac
-        self._RND_ATTACK_STRENGTH = 0.01 # pu
+        self._RND_ATTACK_STRENGTH = 0.001 # pu
         
         # MDLAA freq and attack storage
         self._curr_freqs = np.ones(TOTAL_NUM_GEN_BUSES)
@@ -50,12 +49,15 @@ class MDLAASOEHandler(SOEHandlerAdjusted):
         
         self._master_to_osqp = master_to_osqp
         self._osqp_to_master = osqp_to_master
+        
+        self._sinus_gain = 0.001
+        self._sinus_angles = np.random.uniform(0, 2 * np.pi, NUM_ATTACKED_LOAD_BUSES)
     
     
     def _process_incoming_data(self, info_gv, visitor_index_and_value):        
         if info_gv in [GroupVariation.Group30Var6]:
             self._read_frequencies(visitor_index_and_value)
-            if self._log_and_skip_if_MDLAA_successful():
+            if self._is_MDLAA_successful():
                 return
             
             # MDLAA first phase - collect data
@@ -78,7 +80,6 @@ class MDLAASOEHandler(SOEHandlerAdjusted):
         for i in range(TOTAL_NUM_GEN_BUSES):
             self._curr_freqs[i] = visitor_index_and_value[i][1] * MILLI
         log.info(f"Freqs: {['{0:.5f}'.format(i) for i in self._curr_freqs.tolist()]}")
-        freq_log.info(",".join([str(i) for i in self._curr_freqs]))
         self._curr_freqs = self._curr_freqs / NOMINAL_FREQ
             
         
@@ -101,8 +102,10 @@ class MDLAASOEHandler(SOEHandlerAdjusted):
     
     # ---Attack handling---
     def _generate_and_apply_random_attack(self):
-        # TODO 
-        self._curr_attack_temp = 1 + np.random.uniform(-self._RND_ATTACK_STRENGTH, self._RND_ATTACK_STRENGTH, NUM_ATTACKED_LOAD_BUSES)
+        self._curr_attack_temp = 1 + np.sin(self._sinus_angles) * self._sinus_gain \
+            + np.random.uniform(-self._RND_ATTACK_STRENGTH, self._RND_ATTACK_STRENGTH, NUM_ATTACKED_LOAD_BUSES)
+        self._sinus_angles += np.pi / 50
+        self._sinus_gain += 0.0001
         self._do_attack()
     
     def _do_attack(self):
@@ -148,8 +151,8 @@ class MDLAASOEHandler(SOEHandlerAdjusted):
         
         if self._ka == Tini:
             self._master_to_osqp.put({'U': self._U, 'Y': self._Y})
-            self._attack_history = self._U[:, Nac:Tini+Nac]
-            self._freq_history = self._Y[:, Nac:Tini+Nac]
+            self._attack_history = self._U[:, :Tini]
+            self._freq_history = self._Y[:, :Tini]
         self._master_to_osqp.put({'attack_history': self._attack_history, 'freq_history': self._freq_history})
         OSQP_result = self._osqp_to_master.get()
         self._ka += Nac
@@ -190,7 +193,7 @@ class MDLAASOEHandler(SOEHandlerAdjusted):
 
 
     # ---Logging---
-    def _log_and_skip_if_MDLAA_successful(self):   
+    def _is_MDLAA_successful(self):   
         for freq in self._curr_freqs:
             if freq >= Omega_r_weight:
                 log.warning(f"MDLAA SUCCESSFUL: {self._curr_freqs * NOMINAL_FREQ}")
@@ -220,7 +223,7 @@ def main():
     master_to_osqp = queues_manager.Queue()
     osqp_to_master = queues_manager.Queue()
     
-    osqp_process = Process(target=osqp_process, args=(master_to_osqp, osqp_to_master,), daemon=True)
+    osqp = Process(target=osqp_process, args=(master_to_osqp, osqp_to_master,), daemon=True)
         
     master = MasterStation(outstation_ip=outstation_ip, port=port, master_id=1, outstation_id=2, log_handler=None)
     soe_handler = MDLAASOEHandler(logs_file, station_ref=master, attacks=loads_coeffs,
@@ -233,7 +236,7 @@ def main():
     
     master.start()
     master2.start()
-    osqp_process.start()
+    osqp.start()
     
     time.sleep(1_000_000_000)
     del master

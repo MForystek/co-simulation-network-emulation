@@ -28,8 +28,7 @@ class OSQPSolver:
         
         HU = self._build_hankel(U, Tini + Nap) # Shape: [(Tini+Nap)*num_load_buses, Ta-Tini-Nap+1]
         HY = self._build_hankel(Y, Tini + Nap) # Shape: [(Tini+Nap)*num_gen_buses, Ta-Tini-Nap+1]
-        # TODO: Check if asserting only for HU is enough (in article it says only p_d)
-        self._assert_Hankel_full_rank(np.vstack([HU, HY]))
+        self._assert_Hankel_full_rank(HU)
 
         # Split into past/future blocks
         self._Up = HU[:Tini*NUM_ATTACKED_LOAD_BUSES, :]
@@ -42,7 +41,7 @@ class OSQPSolver:
         Omega_r = Omega_r_weight * np.ones(Nap * TOTAL_NUM_GEN_BUSES)
         
         # Construct OSQP parameters
-        self._H = 2 * self._Yf.T @ Q @ self._Yf + self._Uf.T @ R @ self._Uf
+        self._H = 2 * (self._Yf.T @ Q @ self._Yf + self._Uf.T @ R @ self._Uf)
         self._f = -2 * self._Yf.T @ Q @ Omega_r
         self._osqp_parameters_prepared = True
             
@@ -56,10 +55,10 @@ class OSQPSolver:
         return H
     
     
-    def _assert_Hankel_full_rank(self, combined_Hankel):
-        rank = np.linalg.matrix_rank(combined_Hankel)
-        log.info(f"Rank of combined Hankel matrix: {rank} / {combined_Hankel.shape[1]} columns")
-        assert rank == combined_Hankel.shape[1], "Hankel matrix is not full rank"
+    def _assert_Hankel_full_rank(self, attacks_Hankel):
+        rank = np.linalg.matrix_rank(attacks_Hankel)
+        log.info(f"Rank of combined Hankel matrix: {rank} / {attacks_Hankel.shape[1]} columns")
+        assert rank == attacks_Hankel.shape[1], "Attack vectors Hankel matrix is not full rank"
     
     
     def construct_constraints(self):
@@ -143,27 +142,27 @@ class OSQPSolver:
         log.info(f"OSQP solving time avg: {self._avg_osqp_solving_time:.0f} ms, last: {osqp_solving_time:.0f} ms")
         
 
-def osqp_process(master_to_osqp:Queue, osqp_to_master:Queue):    
+def osqp_process(main_to_osqp:Queue, osqp_to_main:Queue):    
     osqp_solver = OSQPSolver()
     
     # Read the first data to initialize the solver
-    setup_data = master_to_osqp.get()
+    setup_data = main_to_osqp.get()
     # Initialize the solver
     osqp_solver.prepare_OSQP_parameters(setup_data['U'], setup_data['Y'])
     osqp_solver.construct_constraints()
     result = osqp_solver.setup_solve()
-    # Sned the result of first calculation
-    osqp_to_master.put(result)
+    # Send the result of first calculation
+    osqp_to_main.put(result)
     
     while True:
-        data = master_to_osqp.get()
-        if data == -1:
+        data = main_to_osqp.get()
+        if type(data) == int and data == -1:
             log.info("Exiting OSQP process.")
             exit(0)
         
         result = osqp_solver.update_solve(data['attack_history'], data['freq_history'])
         try:
-            osqp_to_master.put(result)
+            osqp_to_main.put(result)
         except (EOFError, BrokenPipeError):
             log.info("Exiting OSQP process.")
             exit(0)

@@ -25,5 +25,5 @@ max_attack = (1 + 0.4) * np.ones(TOTAL_NUM_LOAD_BUSES) # Max x% load alteration 
 min_attack = (1 - 0.4) * np.ones(TOTAL_NUM_LOAD_BUSES) # Min x% load alteration per bus
 
 
-step_time = 100    # ms
+step_time = 100      # ms
 waiting_iters = -300 # number of iterations to skip due to waiting for the system to settle

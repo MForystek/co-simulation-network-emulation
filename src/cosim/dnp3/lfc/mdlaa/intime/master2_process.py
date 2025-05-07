@@ -21,7 +21,7 @@ def master2_process(main_to_master2: Queue):
     
     while True:
         data = main_to_master2.get()
-        if data == -1:
+        if type(data) == int and data == -1:
             exit(0)
         
         for i in range(data):
