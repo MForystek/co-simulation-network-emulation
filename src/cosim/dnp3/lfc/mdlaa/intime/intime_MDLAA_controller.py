@@ -113,7 +113,7 @@ class MDLAAHandler:
     # ---Second phase---
     def _execute_MDLAA_second_phase(self):
         self._exit_if_max_attack_reached()
-        log.info(f"Attack start from index: {self._ka}")
+        log.info(f"Attack starts from index: {self._ka}")
         
         if self._ka == Tini:
             self._master_to_osqp.put({'U': self._U, 'Y': self._Y})
@@ -145,7 +145,7 @@ class MDLAAHandler:
             self._attack_to_apply += 1
     
     def _apply_predicted_attack(self):
-        self._curr_attack = self._optimal_attacks_to_apply[self._attack_to_apply, :]
+        self._curr_attack = self._optimal_attacks_to_apply[:, self._attack_to_apply]
         log.debug(f"Success, attack: {[float(load) for load in self._curr_attack] * NOMINAL_PS}")
         self._do_attack()
 

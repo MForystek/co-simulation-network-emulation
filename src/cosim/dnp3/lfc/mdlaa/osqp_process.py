@@ -1,5 +1,6 @@
 import time
 import numpy as np
+import logging
 import osqp
 
 from multiprocessing import Queue
@@ -10,6 +11,7 @@ from cosim.dnp3.lfc.mdlaa.constants import *
 
 
 log = getLogger(__name__, "logs/osqp.log")
+freq_log = getLogger("PredFreqLog", "logs/freqs.log", formatter=logging.Formatter('%(message)s'))
 
 class OSQPSolver:
     def __init__(self):
@@ -130,8 +132,10 @@ class OSQPSolver:
     
     def _extract_optimal_attacks(self, g_optimal):
         log.info("OSQP Solved successfully")
-        u_opt = (self._Uf @ g_optimal).reshape(Nap, NUM_ATTACKED_LOAD_BUSES)
-        optimal_attacks_to_apply = u_opt[:Nac, :]
+        pred_freqs = (self._Yf @ g_optimal).reshape(Nap, TOTAL_NUM_GEN_BUSES).T
+        freq_log.info(f"{pred_freqs[:, :Nac]}")
+        u_opt = (self._Uf @ g_optimal).reshape(Nap, NUM_ATTACKED_LOAD_BUSES).T
+        optimal_attacks_to_apply = u_opt[:, :Nac]
         return optimal_attacks_to_apply
        
     
