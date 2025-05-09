@@ -10,9 +10,9 @@ from cosim.dnp3.lfc.mdlaa.master1_process import master1_process
 from cosim.dnp3.lfc.mdlaa.master2_process import master2_process
 
 
-# Loggers
+np.random.seed(2137)
 log = getLogger(__name__, "logs/MDLAA.log", level=logging.INFO)
-
+        
         
 class MDLAAHandler:
     def __init__(self, main_to_master1: Queue, main_to_master2: Queue, main_to_osqp:Queue, osqp_to_main:Queue):

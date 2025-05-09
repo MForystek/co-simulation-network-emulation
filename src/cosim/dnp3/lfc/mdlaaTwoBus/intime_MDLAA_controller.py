@@ -10,7 +10,7 @@ from cosim.dnp3.lfc.mdlaaTwoBus.master1_process import master1_process
 from cosim.dnp3.lfc.mdlaaTwoBus.master2_process import master2_process
 
 
-# Loggers
+np.random.seed(2137)
 log = getLogger(__name__, "logs/MDLAA.log", level=logging.INFO)
 
         
@@ -46,7 +46,7 @@ class MDLAAHandler:
         self._master_to_osqp = main_to_osqp
         self._osqp_to_master = osqp_to_main
         
-        self._sinus_gain = 0.001
+        self._sinus_gain = 0.0001
         self._sinus_angles = np.random.uniform(0, 2 * np.pi, NUM_ATTACKED_LOAD_BUSES)
     
     

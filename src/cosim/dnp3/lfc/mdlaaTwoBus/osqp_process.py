@@ -7,7 +7,7 @@ from multiprocessing import Queue
 from scipy.sparse import csc_matrix
 
 from cosim.mylogging import getLogger
-from cosim.dnp3.lfc.mdlaa.constants import *
+from cosim.dnp3.lfc.mdlaaTwoBus.constants import *
 
 
 log = getLogger(__name__, "logs/osqp.log")
@@ -30,7 +30,7 @@ class OSQPSolver:
         
         HU = self._build_hankel(U, Tini + Nap) # Shape: [(Tini+Nap)*num_load_buses, Ta-Tini-Nap+1]
         HY = self._build_hankel(Y, Tini + Nap) # Shape: [(Tini+Nap)*num_gen_buses, Ta-Tini-Nap+1]
-        self._assert_Hankel_full_rank(HU)
+        self._assert_Hankel_full_rank(np.vstack([HU, HY]))
 
         # Split into past/future blocks
         self._Up = HU[:Tini*NUM_ATTACKED_LOAD_BUSES, :]
