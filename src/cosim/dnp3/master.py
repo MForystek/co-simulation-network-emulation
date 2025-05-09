@@ -1,6 +1,8 @@
+from multiprocessing import Queue
+
 from pydnp3 import asiodnp3, opendnp3, openpal
-#from dnp3_python.dnp3station.master import MyMaster
-from cosim.dnp3.lfc.mdlaa.intime.master import MyMaster
+from dnp3_python.dnp3station.master import MyMaster
+
 
 class MasterStation(MyMaster):    
     def configure_master(self, soe_handler, outstation_ip, port, concurrency_hint=1, scan_time=1000):
@@ -21,6 +23,12 @@ class MasterStation(MyMaster):
         self.fast_scan = self.master.AddClassScan(opendnp3.ClassField().AllClasses(),
                                                   openpal.TimeDuration().Milliseconds(scan_time),
                                                   opendnp3.TaskConfig().Default())
+
+    
+    def get_db_by_group_variation_with_queue(self, group: int, variation: int, output_queue: Queue):
+        data = self.get_db_by_group_variation(group, variation)
+        output_queue.put(data)
+
 
     def _clean_master(self):
         del self.soe_handler

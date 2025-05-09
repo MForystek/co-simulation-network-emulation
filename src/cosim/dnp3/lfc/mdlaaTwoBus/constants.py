@@ -10,7 +10,7 @@ NUM_OF_LOADS_SECONDARY_HANDLER = 0 # number of load buses attacked by the second
 NUM_ATTACKED_LOAD_BUSES = NUM_OF_LOADS_PRIMARY_HANDLER + NUM_OF_LOADS_SECONDARY_HANDLER # number of attackable load buses
 NOMINAL_FREQ = 60   # HZ
 # Load numbers:         1    2
-NOMINAL_PS = np.array([900, 1000]) # MW
+NOMINAL_PS = np.array([967, 1767]) # MW
 
 
 # Parameters

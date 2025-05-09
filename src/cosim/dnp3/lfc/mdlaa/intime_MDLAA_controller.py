@@ -4,10 +4,10 @@ import logging
 from multiprocessing import Process, Manager, Queue
 
 from cosim.mylogging import getLogger
-from cosim.dnp3.lfc.mdlaaTwoBus.constants import *
-from cosim.dnp3.lfc.mdlaaTwoBus.osqp_process import osqp_process
-from cosim.dnp3.lfc.mdlaaTwoBus.intime.master1_process import master1_process
-from cosim.dnp3.lfc.mdlaaTwoBus.intime.master2_process import master2_process
+from cosim.dnp3.lfc.mdlaa.constants import *
+from cosim.dnp3.lfc.mdlaa.osqp_process import osqp_process
+from cosim.dnp3.lfc.mdlaa.master1_process import master1_process
+from cosim.dnp3.lfc.mdlaa.master2_process import master2_process
 
 
 # Loggers
