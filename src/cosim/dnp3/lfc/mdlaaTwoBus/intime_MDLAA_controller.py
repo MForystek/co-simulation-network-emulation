@@ -18,6 +18,8 @@ class MDLAAHandler:
     def __init__(self, main_to_master1: Queue, main_to_master2: Queue, main_to_osqp:Queue, osqp_to_main:Queue):
         self._main_to_master1 = main_to_master1
         self._main_to_master2 = main_to_master2
+        self._master_to_osqp = main_to_osqp
+        self._osqp_to_master = osqp_to_main
         
         # Constants
         self._NUM_OF_ATTACKED_LOADS = NUM_OF_LOADS_PRIMARY_HANDLER
@@ -42,9 +44,6 @@ class MDLAAHandler:
         self._Y = np.empty([TOTAL_NUM_GEN_BUSES, Ta])
         self._attack_history = np.ones([NUM_ATTACKED_LOAD_BUSES, Tini]) # Stores Tini past attacks
         self._freq_history = np.ones([TOTAL_NUM_GEN_BUSES, Tini])       # Stores Tini past frequencies 
-        
-        self._master_to_osqp = main_to_osqp
-        self._osqp_to_master = osqp_to_main
         
         self._sinus_gain = 0.0001
         self._sinus_angles = np.random.uniform(0, 2 * np.pi, NUM_ATTACKED_LOAD_BUSES)

@@ -6,7 +6,7 @@ from pydnp3.opendnp3 import GroupVariation
 
 from cosim.dnp3.master import MasterStation
 from cosim.dnp3.soe_handler import SOEHandlerAdjusted
-from cosim.dnp3.lfc.mdlaa.constants import step_time
+from cosim.dnp3.lfc.mdlaaTwoBus.constants import step_time
 
 
 class SOEHandlerMaster1(SOEHandlerAdjusted):
