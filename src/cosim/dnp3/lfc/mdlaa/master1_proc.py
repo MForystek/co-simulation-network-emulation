@@ -6,7 +6,6 @@ from pydnp3.opendnp3 import GroupVariation
 
 from cosim.dnp3.master import MasterStation
 from cosim.dnp3.soe_handler import SOEHandlerAdjusted
-from cosim.dnp3.lfc.mdlaaTwoBus.constants import step_time
 
 
 class SOEHandlerMaster1(SOEHandlerAdjusted):
@@ -20,7 +19,7 @@ class SOEHandlerMaster1(SOEHandlerAdjusted):
             self.master1_to_main.put(visitor_index_and_value)
         
 
-def master1_process(main_to_master1: Queue, master1_to_main: Queue):
+def master1_process(main_to_master1: Queue, master1_to_main: Queue, step_time):
     logs_file = "logs/d_r_lfc_mdlaa.log"
     outstation_ip = "172.24.14.212"
     port = 20001

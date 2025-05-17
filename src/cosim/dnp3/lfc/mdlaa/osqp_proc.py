@@ -2,20 +2,25 @@ import time
 import numpy as np
 import logging
 import osqp
+import scipy.sparse
 
 from multiprocessing import Queue
-from scipy.sparse import csc_matrix
 
 from cosim.mylogging import getLogger
-from cosim.dnp3.lfc.mdlaaTwoBus.constants import *
+from cosim.dnp3.lfc.mdlaa.constants import Tini, Nap, Nac, Q_weight, R_weight, Omega_r_weight, MICRO
 
 
 log = getLogger(__name__, "logs/osqp.log")
 freq_log = getLogger("PredFreqLog", "logs/freqs.log", formatter=logging.Formatter('%(message)s'))
 
 class OSQPSolver:
-    def __init__(self):
-        self._osqp = osqp.OSQP()
+    def __init__(self, num_gen_buses, num_attacked_load_buses, max_attack, min_attack):
+        self._NUM_GEN_BUSES = num_gen_buses
+        self._NUM_ATTACKED_LOAD_BUSES = num_attacked_load_buses
+        self._max_attack = max_attack
+        self._min_attack = min_attack
+        
+        self._osqp = osqp.OSQP()       
         self._osqp_parameters_prepared = False
         self._osqp_constraints_constructed = False
         
@@ -33,20 +38,30 @@ class OSQPSolver:
         self._assert_Hankel_full_rank(np.vstack([HU, HY]))
 
         # Split into past/future blocks
-        self._Up = HU[:Tini*NUM_ATTACKED_LOAD_BUSES, :]
-        self._Uf = HU[Tini*NUM_ATTACKED_LOAD_BUSES:(Tini+Nap)*NUM_ATTACKED_LOAD_BUSES, :]
-        self._Yp = HY[:Tini*TOTAL_NUM_GEN_BUSES, :]
-        self._Yf = HY[Tini*TOTAL_NUM_GEN_BUSES:(Tini+Nap)*TOTAL_NUM_GEN_BUSES, :]
+        self._Up = HU[:Tini*self._NUM_ATTACKED_LOAD_BUSES, :]
+        self._Uf = HU[Tini*self._NUM_ATTACKED_LOAD_BUSES:, :]
+        self._Yp = HY[:Tini*self._NUM_GEN_BUSES, :]
+        self._Yf = HY[Tini*self._NUM_GEN_BUSES:, :]
         
-        Q = Q_weight * np.eye(Nap * TOTAL_NUM_GEN_BUSES)
-        R = R_weight * np.eye(Nap * NUM_ATTACKED_LOAD_BUSES)
-        Omega_r = Omega_r_weight * np.ones(Nap * TOTAL_NUM_GEN_BUSES)
+        self._Up_sparse = scipy.sparse.csc_matrix(self._Up)
+        self._Yp_sparse = scipy.sparse.csc_matrix(self._Yp)
+        self._Yf_sparse = scipy.sparse.csc_matrix(self._Yf)
+        self._Uf_sparse = scipy.sparse.csc_matrix(self._Uf)
+        
+        Q_sparse = Q_weight * scipy.sparse.eye(Nap * self._NUM_GEN_BUSES)
+        R_sparse = R_weight * scipy.sparse.eye(Nap * self._NUM_ATTACKED_LOAD_BUSES)
+        
+        Q = Q_weight * np.eye(Nap * self._NUM_GEN_BUSES)
+        Omega_r = Omega_r_weight * np.ones(Nap * self._NUM_GEN_BUSES)
         
         # Construct OSQP parameters
-        self._H = 2 * (self._Yf.T @ Q @ self._Yf + self._Uf.T @ R @ self._Uf)
+        self._H = 2 * (self._Yf_sparse.T @ Q_sparse @ self._Yf_sparse + 
+                    self._Uf_sparse.T @ R_sparse @ self._Uf_sparse)
+        self._H = self._H.tocsc()
+        # TODO maybe also sparse?
         self._f = -2 * self._Yf.T @ Q @ Omega_r
         self._osqp_parameters_prepared = True
-            
+
     
     def _build_hankel(self, data, L):
         cols = data.shape[1] - L + 1  # Number of columns in Hankel matrix
@@ -67,18 +82,19 @@ class OSQPSolver:
         assert self._osqp_parameters_prepared, "OSQP parameters not prepared!"
         log.info("Constructing OSQP constraints...")
         self._u_ini = self._attack_history.flatten(order='F')  # Column-wise flattening
-        self._y_ini = self._freq_history.flatten(order='F')
-        
+        self._y_ini = self._freq_history.flatten(order='F')    
+            
         # [Up; Yp] * g = [u_ini; y_ini]
-        self._A_eq = np.vstack([self._Up, self._Yp])
+        self._A_eq = scipy.sparse.vstack([self._Up_sparse, self._Yp_sparse])
         self._lb_eq = np.hstack([self._u_ini, self._y_ini])
         self._ub_eq = self._lb_eq 
         # min_attack <= Uf * g <= max_attack (repeated for N steps)
-        self._A_ineq = self._Uf
-        self._ub_ineq = np.tile(max_attack, Nap) # Upper bound for controlled load
-        self._lb_ineq = np.tile(min_attack, Nap) # Lower bound for controlled load
+        self._A_ineq = self._Uf_sparse
+        self._ub_ineq = np.tile(self._max_attack, Nap) # Upper bound for controlled load
+        self._lb_ineq = np.tile(self._min_attack, Nap) # Lower bound for controlled load
         # Combine constraints
-        self._A = np.vstack([self._A_eq, self._A_ineq])
+        self._A = scipy.sparse.vstack([self._A_eq, self._A_ineq])
+        self._A = self._A.tocsc()
         self._lb = np.hstack([self._lb_eq, self._lb_ineq])
         self._ub = np.hstack([self._ub_eq, self._ub_ineq])
         self._assert_residuals_small_enough()
@@ -88,8 +104,9 @@ class OSQPSolver:
     def _assert_residuals_small_enough(self):
         # Checking if [u_ini; y_ini] lies in the column space of [Up; Yp]
         # Solving least-squares: Find g such that A_eq * g ≈ target
-        g_ls = np.linalg.lstsq(self._A_eq, self._lb_eq, rcond=None)[0]
-        residual = np.linalg.norm(self._A_eq @ g_ls - self._lb_eq)
+        A_eq_dense = self._A_eq.todense()
+        g_ls = np.linalg.lstsq(A_eq_dense, self._lb_eq, rcond=None)[0]
+        residual = np.linalg.norm(A_eq_dense @ g_ls - self._lb_eq)
         log.info(f"Least-squares residual: {residual}")
         assert residual <= 1e-6, "Initial conditions incompatible with historical data!"   
    
@@ -98,8 +115,8 @@ class OSQPSolver:
         assert self._osqp_constraints_constructed, "OSQP constraints not constructed!"
         log.info("Setting up OSQP problem...")
         self._osqp.setup(
-            P=csc_matrix(self._H), q=self._f.flatten(),
-            A=csc_matrix(self._A), l=self._lb, u=self._ub,
+            P=self._H, q=self._f.flatten(),
+            A=self._A, l=self._lb, u=self._ub,
             verbose=False)
         
         log.info("Solving OSQP problem...")
@@ -132,9 +149,9 @@ class OSQPSolver:
     
     def _extract_optimal_attacks(self, g_optimal):
         log.info("OSQP Solved successfully")
-        pred_freqs = (self._Yf @ g_optimal).reshape(Nap, TOTAL_NUM_GEN_BUSES).T
+        pred_freqs = (self._Yf @ g_optimal).reshape(Nap, self._NUM_GEN_BUSES).T
         freq_log.info(f"{pred_freqs[:, :Nac]}")
-        u_opt = (self._Uf @ g_optimal).reshape(Nap, NUM_ATTACKED_LOAD_BUSES).T
+        u_opt = (self._Uf @ g_optimal).reshape(Nap, self._NUM_ATTACKED_LOAD_BUSES).T
         optimal_attacks_to_apply = u_opt[:, :Nac]
         return optimal_attacks_to_apply
        
@@ -146,8 +163,9 @@ class OSQPSolver:
         log.info(f"OSQP solving time avg: {self._avg_osqp_solving_time:.0f} ms, last: {osqp_solving_time:.0f} ms")
         
 
-def osqp_process(main_to_osqp:Queue, osqp_to_main:Queue):    
-    osqp_solver = OSQPSolver()
+def osqp_process(main_to_osqp:Queue, osqp_to_main:Queue,
+                 num_gen_buses, num_attacked_load_buses, max_attack, min_attack):    
+    osqp_solver = OSQPSolver(num_gen_buses, num_attacked_load_buses, max_attack, min_attack)
     
     # Read the first data to initialize the solver
     setup_data = main_to_osqp.get()
