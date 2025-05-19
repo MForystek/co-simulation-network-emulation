@@ -26,6 +26,7 @@ class OSQPSolver:
         
         self._num_of_osqp_solved = 0      # we won't count the first calculation
         self._avg_osqp_solving_time = 0.0
+        self._last_solution = None  # Store last solution for warm starting
     
         
     def prepare_OSQP_parameters(self, U, Y):
@@ -48,18 +49,17 @@ class OSQPSolver:
         self._Yf_sparse = scipy.sparse.csc_matrix(self._Yf)
         self._Uf_sparse = scipy.sparse.csc_matrix(self._Uf)
         
-        Q_sparse = Q_weight * scipy.sparse.eye(Nap * self._NUM_GEN_BUSES)
-        R_sparse = R_weight * scipy.sparse.eye(Nap * self._NUM_ATTACKED_LOAD_BUSES)
+        Q_sparse = Q_weight * scipy.sparse.eye(Nap * self._NUM_GEN_BUSES, format='csc')
+        R_sparse = R_weight * scipy.sparse.eye(Nap * self._NUM_ATTACKED_LOAD_BUSES, format='csc')
         
-        Q = Q_weight * np.eye(Nap * self._NUM_GEN_BUSES)
         Omega_r = Omega_r_weight * np.ones(Nap * self._NUM_GEN_BUSES)
         
         # Construct OSQP parameters
-        self._H = 2 * (self._Yf_sparse.T @ Q_sparse @ self._Yf_sparse + 
+        YfTxQ = self._Yf_sparse.T @ Q_sparse
+        self._H = 2 * (YfTxQ @ self._Yf_sparse + 
                     self._Uf_sparse.T @ R_sparse @ self._Uf_sparse)
         self._H = self._H.tocsc()
-        # TODO maybe also sparse?
-        self._f = -2 * self._Yf.T @ Q @ Omega_r
+        self._f = -2 * (YfTxQ.toarray() @ Omega_r)
         self._osqp_parameters_prepared = True
 
     
@@ -114,16 +114,25 @@ class OSQPSolver:
     def setup_solve(self):
         assert self._osqp_constraints_constructed, "OSQP constraints not constructed!"
         log.info("Setting up OSQP problem...")
+        
+        settings = {
+            'verbose': False,
+            'eps_abs': 5e-3,  # Reduce accuracy slightly for speed
+            'eps_rel': 5e-3,
+            'warm_start': True,  # Enable warm starting
+            #'adaptive_rho_interval': 25
+        }
+        
         self._osqp.setup(
             P=self._H, q=self._f.flatten(),
             A=self._A, l=self._lb, u=self._ub,
-            verbose=False)
+            **settings)
         
         log.info("Solving OSQP problem...")
         result = self._osqp.solve()
         return self._return_attacks_or_skip_if_infeasible(result)
        
-       
+   
     def update_solve(self, attack_history, freq_history):
         self._u_ini = attack_history.flatten(order='F')
         self._y_ini = freq_history.flatten(order='F')
@@ -131,19 +140,26 @@ class OSQPSolver:
         self._ub_eq = self._lb_eq   
         self._lb = np.hstack([self._lb_eq, self._lb_ineq])
         self._ub = np.hstack([self._ub_eq, self._ub_ineq]) 
+        
         self._osqp.update(l=self._lb, u=self._ub)
+        # Update problem with warm start
+        if self._last_solution is not None:
+            self._osqp.warm_start(x=self._last_solution)
         
         log.info("Solving OSQP problem...")
         osqp_solving_start_time = time.time_ns()
         result = self._osqp.solve()
         self._log_osqp_solving_time(osqp_solving_start_time)
+        
         return self._return_attacks_or_skip_if_infeasible(result)
     
     
     def _return_attacks_or_skip_if_infeasible(self, result):
         if result.info.status != 'solved':
             log.warning(f"Optimization failed. Status: {result.info.status}. Skipping...")
+            self._last_solution = None
             return {'skip': True}
+        self._last_solution = result.x  # Store last solution for warm starting
         return {'attacks': self._extract_optimal_attacks(result.x)}
     
     
