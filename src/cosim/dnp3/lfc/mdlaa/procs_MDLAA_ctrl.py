@@ -38,12 +38,12 @@ class MDLAAHandler:
         self._MAX_ATTACK_ITER = self._Ta / Nac
         
         # Measurement phase variables and constants
-        self._RND_ATTACK = rnd_attack_ampl        # pu of load
-        self._SINUS_AMPL_GAIN = sin_attack_gain # pu of load
-        self._SINUS_FREQ = sin_attack_freq      # rad/ms
+        self._RND_ATTACK = rnd_attack_ampl    # pu of load
+        self._SIN_AMPL_GAIN = sin_attack_gain # pu of load
+        self._SIN_FREQ = sin_attack_freq      # rad/ms
         
-        self._sinus_ampl = sin_attack_init_ampl   # pu of load
-        self._sinus_angles = np.random.uniform(0, 2*np.pi, self._NUM_ATTACKED_LOADS) # rad
+        self._sin_ampl = sin_attack_init_ampl # pu of load
+        self._sin_angles = np.random.uniform(0, 2*np.pi, self._NUM_ATTACKED_LOADS) # rad
         
         # Counters
         self._measurement_iter = self._wait_iters
@@ -115,12 +115,12 @@ class MDLAAHandler:
     
     def _generate_and_apply_random_attack(self):
         # Sinus attack for DLAA like behaviour, random attack to make Hankel matrix full rank by avoiding repetitions
-        sin_attack = np.sin(self._sinus_angles) * self._sinus_ampl
+        sin_attack = np.sin(self._sin_angles) * self._sin_ampl
         rnd_attack = np.random.uniform(-self._RND_ATTACK, self._RND_ATTACK, self._NUM_ATTACKED_LOADS)
         self._curr_attack = 1 + sin_attack + rnd_attack # Add to 1 because attack is added to nominal load
         
-        self._sinus_angles += self._SINUS_FREQ * step_time
-        self._sinus_ampl += self._SINUS_AMPL_GAIN
+        self._sin_angles += self._SIN_FREQ * step_time
+        self._sin_ampl += self._SIN_AMPL_GAIN
         self._do_attack()
     
     def _collect_measurements(self):
