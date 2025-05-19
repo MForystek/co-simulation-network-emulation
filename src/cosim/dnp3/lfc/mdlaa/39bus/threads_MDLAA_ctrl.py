@@ -32,9 +32,9 @@ class MDLAASOEHandler(SOEHandlerAdjusted):
         
         self._RND_ATTACK = rnd_attack_ampl        # pu of load
         self._SINUS_AMPL = sin_attack_init_ampl   # pu of load
-        self._SINUS_AMPL_GAIN = sinus_attack_gain # pu of load
-        self._SINUS_FREQ = sinus_attack_freq      # rad/ms
-        self._SINUS_ANGLES = np.random.uniform(0, 2*np.pi, NUM_ATTACKED_LOADS_39BUS) # pu of load
+        self._SINUS_AMPL_GAIN = sin_attack_gain # pu of load
+        self._SINUS_FREQ = sin_attack_freq      # rad/ms
+        self._SINUS_ANGLES = np.random.uniform(0, 2*np.pi, NUM_ATTACKED_LOADS_39BUS) # rad
         
         # Counters
         self._measurement_iter = wait_iters_39BUS

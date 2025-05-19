@@ -17,10 +17,10 @@ Omega_r_weight = 1.025  # attack success threshold over 1 pu of load
 Q_weight = 1e5          # weight for frequency deviation penalty
 R_weight = 1e1          # weight for attack effort penalty
 
-rnd_attack_ampl = 0.001        # pu of load
-sin_attack_init_ampl = 0.001   # pu of load
-sinus_attack_gain = 0.0001     # amplitude gain (in pu of load)
-sinus_attack_freq = np.pi/5000 # rad/ms
+rnd_attack_ampl = 0.001      # pu of load
+sin_attack_init_ampl = 0.001 # pu of load
+sin_attack_gain = 0.0001     # amplitude gain (in pu of load)
+sin_attack_freq = np.pi/5000 # rad/ms
 
 step_time = 100         # ms
 
@@ -29,8 +29,8 @@ step_time = 100         # ms
 # MDLAA 39 Bus Constants
 ####################################
 
-NUM_LOADS_39BUS = 18
 NUM_GENS_39BUS = 10
+NUM_LOADS_39BUS = 18
 NUM_LOADS_MASTER1_39BUS = 10 # number of load buses attacked by the master1
 NUM_LOADS_MASTER2_39BUS = 8  # number of load buses attacked by the master2
 NUM_ATTACKED_LOADS_39BUS = NUM_LOADS_MASTER1_39BUS + NUM_LOADS_MASTER2_39BUS # total number of attacked load buses
@@ -50,8 +50,8 @@ min_attack_39BUS = (1 - 0.4) * np.ones(NUM_LOADS_39BUS) # min x% load alteration
 # MDLAA Kundur Constants
 ####################################
 
-NUM_LOADS_KUNDUR = 2
 NUM_GENS_KUNDUR = 4
+NUM_LOADS_KUNDUR = 2
 NUM_LOADS_MASTER1_KUNDUR = 1 # number of load buses attacked by the master1
 NUM_LOADS_MASTER2_KUNDUR = 1 # number of load buses attacked by the master2
 NUM_ATTACKED_LOADS_KUNDUR = NUM_LOADS_MASTER1_KUNDUR + NUM_LOADS_MASTER2_KUNDUR # total number of attacked load buses
@@ -65,3 +65,34 @@ wait_iters_KUNDUR = -int(wait_sec_KUNDUR / MILLI / step_time) # num of iteration
 
 max_attack_KUNDUR = (1 + 0.15) * np.ones(NUM_LOADS_KUNDUR) # max x% load alteration per bus
 min_attack_KUNDUR = (1 - 0.15) * np.ones(NUM_LOADS_KUNDUR) # min x% load alteration per bus
+
+
+####################################
+# CONSTANTS DICTIONARIES
+####################################
+
+consts_39BUS = {
+    'NUM_GENS': NUM_GENS_39BUS,
+    'NUM_LOADS': NUM_LOADS_39BUS,
+    'NUM_LOADS_MASTER1': NUM_LOADS_MASTER1_39BUS,
+    'NUM_LOADS_MASTER2': NUM_LOADS_MASTER2_39BUS,
+    'NUM_ATTACKED_LOADS': NUM_ATTACKED_LOADS_39BUS,
+    'NOMINAL_PS': NOMINAL_PS_39BUS,
+    'Ta': Ta_39BUS,
+    'wait_iters': wait_iters_39BUS,
+    'max_attack': max_attack_39BUS,
+    'min_attack': min_attack_39BUS
+}
+
+consts_KUNDUR = {
+    'NUM_GENS': NUM_GENS_KUNDUR,
+    'NUM_LOADS': NUM_LOADS_KUNDUR,
+    'NUM_LOADS_MASTER1': NUM_LOADS_MASTER1_KUNDUR,
+    'NUM_LOADS_MASTER2': NUM_LOADS_MASTER2_KUNDUR,
+    'NUM_ATTACKED_LOADS': NUM_ATTACKED_LOADS_KUNDUR,
+    'NOMINAL_PS': NOMINAL_PS_KUNDUR,
+    'Ta': Ta_KUNDUR,
+    'wait_iters': wait_iters_KUNDUR,
+    'max_attack': max_attack_KUNDUR,
+    'min_attack': min_attack_KUNDUR
+}

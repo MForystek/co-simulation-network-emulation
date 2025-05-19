@@ -14,19 +14,19 @@ log = getLogger(__name__, "logs/osqp.log")
 freq_log = getLogger("PredFreqLog", "logs/freqs.log", formatter=logging.Formatter('%(message)s'))
 
 class OSQPSolver:
-    def __init__(self, num_gens, num_attacked_loads, max_attack, min_attack):
-        self._NUM_GENS = num_gens
-        self._NUM_ATTACKED_LOADS = num_attacked_loads
-        self._max_attack = max_attack
-        self._min_attack = min_attack
+    def __init__(self, pow_sys_consts):
+        self._NUM_GENS = pow_sys_consts['NUM_GENS']
+        self._NUM_ATTACKED_LOADS = pow_sys_consts['NUM_ATTACKED_LOADS']
+        self._max_attack = pow_sys_consts['max_attack']
+        self._min_attack = pow_sys_consts['min_attack']
         
         self._osqp = osqp.OSQP()       
         self._osqp_parameters_prepared = False
         self._osqp_constraints_constructed = False
         
-        self._num_of_osqp_solved = 0      # we won't count the first calculation
+        self._num_of_osqp_solved = 0    # we won't count the first calculation
         self._avg_osqp_solving_time = 0.0
-        self._last_solution = None  # Store last solution for warm starting
+        self._last_solution = None      # store last solution for warm starting
     
         
     def prepare_OSQP_parameters(self, U, Y):
@@ -34,8 +34,8 @@ class OSQPSolver:
         self._attack_history = U[:, :Tini]
         self._freq_history = Y[:, :Tini]
         
-        HU = self._build_hankel(U, Tini + Nap) # Shape: [(Tini+Nap)*num_load_buses, Ta-Tini-Nap+1]
-        HY = self._build_hankel(Y, Tini + Nap) # Shape: [(Tini+Nap)*num_gen_buses, Ta-Tini-Nap+1]
+        HU = self._build_hankel(U, Tini + Nap) # shape: [(Tini+Nap)*num_load_buses, Ta-Tini-Nap+1]
+        HY = self._build_hankel(Y, Tini + Nap) # shape: [(Tini+Nap)*num_gen_buses, Ta-Tini-Nap+1]
         self._assert_Hankel_full_rank(np.vstack([HU, HY]))
 
         # Split into past/future blocks
@@ -64,10 +64,10 @@ class OSQPSolver:
 
     
     def _build_hankel(self, data, L):
-        cols = data.shape[1] - L + 1  # Number of columns in Hankel matrix
-        H = np.zeros((L * data.shape[0], cols))
+        cols_num = data.shape[1] - L + 1  
+        H = np.zeros((L * data.shape[0], cols_num))
         for i in range(L):
-            row_block = data[:, i:i+cols]
+            row_block = data[:, i:i+cols_num]
             H[i*data.shape[0]:(i+1)*data.shape[0], :] = row_block
         return H
     
@@ -81,7 +81,7 @@ class OSQPSolver:
     def construct_constraints(self):
         assert self._osqp_parameters_prepared, "OSQP parameters not prepared!"
         log.info("Constructing OSQP constraints...")
-        self._u_ini = self._attack_history.flatten(order='F')  # Column-wise flattening
+        self._u_ini = self._attack_history.flatten(order='F')  # column-wise flattening
         self._y_ini = self._freq_history.flatten(order='F')    
             
         # [Up; Yp] * g = [u_ini; y_ini]
@@ -90,8 +90,8 @@ class OSQPSolver:
         self._ub_eq = self._lb_eq 
         # min_attack <= Uf * g <= max_attack (repeated for N steps)
         self._A_ineq = self._Uf_sparse
-        self._ub_ineq = np.tile(self._max_attack, Nap) # Upper bound for controlled load
-        self._lb_ineq = np.tile(self._min_attack, Nap) # Lower bound for controlled load
+        self._ub_ineq = np.tile(self._max_attack, Nap) # upper bound for controlled load
+        self._lb_ineq = np.tile(self._min_attack, Nap) # lower bound for controlled load
         # Combine constraints
         self._A = scipy.sparse.vstack([self._A_eq, self._A_ineq])
         self._A = self._A.tocsc()
@@ -117,9 +117,9 @@ class OSQPSolver:
         
         settings = {
             'verbose': False,
-            'eps_abs': 5e-3,  # Reduce accuracy slightly for speed
+            'eps_abs': 5e-3,
             'eps_rel': 5e-3,
-            'warm_start': True,  # Enable warm starting
+            'warm_start': True,
             #'adaptive_rho_interval': 25
         }
         
@@ -159,7 +159,7 @@ class OSQPSolver:
             log.warning(f"Optimization failed. Status: {result.info.status}. Skipping...")
             self._last_solution = None
             return {'skip': True}
-        self._last_solution = result.x  # Store last solution for warm starting
+        self._last_solution = result.x  # store last solution for warm starting
         return {'attacks': self._extract_optimal_attacks(result.x)}
     
     
@@ -173,15 +173,14 @@ class OSQPSolver:
        
     
     def _log_osqp_solving_time(self, osqp_solving_start_time):
-        osqp_solving_time = (time.time_ns() - osqp_solving_start_time) * MICRO # in ms
+        osqp_solving_time = (time.time_ns() - osqp_solving_start_time) * MICRO # ms
         self._avg_osqp_solving_time = (self._avg_osqp_solving_time * self._num_of_osqp_solved + osqp_solving_time) / (self._num_of_osqp_solved + 1)
         self._num_of_osqp_solved += 1
         log.info(f"OSQP solving time avg: {self._avg_osqp_solving_time:.0f} ms, last: {osqp_solving_time:.0f} ms")
         
 
-def osqp_process(main_to_osqp:Queue, osqp_to_main:Queue,
-                 num_gens, num_attacked_loads, max_attack, min_attack):    
-    osqp_solver = OSQPSolver(num_gens, num_attacked_loads, max_attack, min_attack)
+def osqp_process(main_to_osqp:Queue, osqp_to_main:Queue, pow_sys_consts):    
+    osqp_solver = OSQPSolver(pow_sys_consts)
     
     # Read the first data to initialize the solver
     setup_data = main_to_osqp.get()
