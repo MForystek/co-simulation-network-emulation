@@ -9,7 +9,7 @@ from cosim.dnp3.soe_handler import SOEHandlerAdjusted
 
 
 class SOEHandlerMaster1(SOEHandlerAdjusted):
-    def __init__(self, log_file_path="logs/soehandler.log", soehandler_log_level=logging.INFO, station_ref=None, master1_to_main:Queue=None, *args, **kwargs):
+    def __init__(self, station_ref, master1_to_main:Queue, log_file_path="logs/d_r_lfc_mdlaa.log", soehandler_log_level=logging.INFO, *args, **kwargs):
         super().__init__(log_file_path, soehandler_log_level, station_ref, *args, **kwargs)
         self.master1_to_main = master1_to_main
         
@@ -20,12 +20,11 @@ class SOEHandlerMaster1(SOEHandlerAdjusted):
         
 
 def master1_process(main_to_master1: Queue, master1_to_main: Queue, step_time):
-    logs_file = "logs/d_r_lfc_mdlaa.log"
     outstation_ip = "172.24.14.212"
     port = 20001
 
     master1 = MasterStation(outstation_ip=outstation_ip, port=port, master_id=1, outstation_id=2, log_handler=None)
-    soe_handler = SOEHandlerMaster1(logs_file, station_ref=master1, master1_to_main=master1_to_main)
+    soe_handler = SOEHandlerMaster1(station_ref=master1, master1_to_main=master1_to_main)
     master1.configure_master(soe_handler, outstation_ip, port, scan_time=step_time)
     master1.start()
 

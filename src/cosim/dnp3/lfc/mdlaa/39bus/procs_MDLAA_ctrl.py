@@ -16,46 +16,47 @@ log = getLogger(__name__, "logs/MDLAA.log", level=logging.INFO)
         
 class MDLAAHandler:
     def __init__(self, main_to_master1: Queue, main_to_master2: Queue, main_to_osqp:Queue, osqp_to_main:Queue):
+        # Queues
         self._main_to_master1 = main_to_master1
         self._main_to_master2 = main_to_master2
+        self._master_to_osqp = main_to_osqp
+        self._osqp_to_master = osqp_to_main
         
         # Constants
-        self._NUM_OF_ATTACKED_LOADS = NUM_LOADS_MASTER1_39BUS
+        self._NUM_ATTACKED_LOADS_MASTER1 = NUM_LOADS_MASTER1_39BUS
         self._MAX_ATTACK_ITER = Ta_39BUS / Nac
-        self._RND_ATTACK_STRENGTH = 0.001 # pu
         
-        # MDLAA freq and attack storage
-        self._curr_freqs = np.ones(NUM_GEN_BUSES_39BUS)
-        self._curr_attack = np.ones(NUM_ATTACKED_LOAD_BUSES_39BUS, dtype=np.float32) # Used also to apply the attack through the second master station
-        
+        self._RND_ATTACK = rnd_attack_ampl        # pu of load
+        self._SINUS_AMPL = sin_attack_init_ampl   # pu of load
+        self._SINUS_AMPL_GAIN = sinus_attack_gain # pu of load
+        self._SINUS_FREQ = sinus_attack_freq      # rad/ms
+        self._SINUS_ANGLES = np.random.uniform(0, 2*np.pi, NUM_ATTACKED_LOADS_39BUS) # pu of load
+    
         # Counters
         self._measurement_iter = wait_iters_39BUS
         self._ka = Tini
         self._attack_to_apply = -1
     
+        # MDLAA freq and attack storage
+        self._curr_freqs = np.ones(NUM_GENS_39BUS)
+        self._curr_attack = np.ones(NUM_ATTACKED_LOADS_39BUS, dtype=np.float32) # Used also to apply the attack through the second master station
+        
         # History of max and min attacks
-        self._all_max_attack = np.ones(NUM_ATTACKED_LOAD_BUSES_39BUS)
-        self._all_min_attack = np.ones(NUM_ATTACKED_LOAD_BUSES_39BUS)
+        self._all_max_attack = np.ones(NUM_ATTACKED_LOADS_39BUS)
+        self._all_min_attack = np.ones(NUM_ATTACKED_LOADS_39BUS)
     
         # Data storage for historical attacks and frequencies
-        self._U = np.empty([NUM_ATTACKED_LOAD_BUSES_39BUS, Ta_39BUS])
-        self._Y = np.empty([NUM_GEN_BUSES_39BUS, Ta_39BUS])
-        self._attack_history = np.ones([NUM_ATTACKED_LOAD_BUSES_39BUS, Tini]) # Stores Tini past attacks
-        self._freq_history = np.ones([NUM_GEN_BUSES_39BUS, Tini])       # Stores Tini past frequencies 
+        self._U = np.empty([NUM_ATTACKED_LOADS_39BUS, Ta_39BUS])
+        self._Y = np.empty([NUM_GENS_39BUS, Ta_39BUS])
+        self._attack_history = np.ones([NUM_ATTACKED_LOADS_39BUS, Tini]) # Stores Tini past attacks
+        self._freq_history = np.ones([NUM_GENS_39BUS, Tini])             # Stores Tini past frequencies 
         
-        self._master_to_osqp = main_to_osqp
-        self._osqp_to_master = osqp_to_main
-        
-        self._sinus_gain = 0.001
-        self._sinus_angles = np.random.uniform(0, 2 * np.pi, NUM_ATTACKED_LOAD_BUSES_39BUS)
-    
     
     def process_data(self, incoming_data):
         if incoming_data is None:
             return
         
         self._read_frequencies(incoming_data)
-        
         if self._is_MDLAA_successful():
             return 
         
@@ -76,13 +77,20 @@ class MDLAAHandler:
 
     
     def _read_frequencies(self, incoming_data):
-        freqs = [incoming_data[key][1] for key in range(NUM_GEN_BUSES_39BUS)]
-        for i in range(NUM_GEN_BUSES_39BUS):
+        freqs = [incoming_data[key][1] for key in range(NUM_GENS_39BUS)]
+        for i in range(NUM_GENS_39BUS):
             self._curr_freqs[i] = freqs[i] * MILLI
         log.info(f"Freqs: {['{0:.5f}'.format(i) for i in self._curr_freqs.tolist()]}")
         self._curr_freqs = self._curr_freqs / NOMINAL_FREQ
             
+    def _is_MDLAA_successful(self):   
+        for freq in self._curr_freqs:
+            if freq >= Omega_r_weight:
+                log.warning(f"MDLAA SUCCESSFUL: {self._curr_freqs * NOMINAL_FREQ}")
+                return True
+        return False
         
+
     # ---First phase---
     def _execute_MDLAA_first_phase(self):
         log.info(f"Iter: {self._measurement_iter}")
@@ -90,13 +98,6 @@ class MDLAAHandler:
             self._generate_and_apply_random_attack()
             self._collect_measurements()
         self._measurement_iter += 1           
-    
-    def _generate_and_apply_random_attack(self):
-        self._curr_attack = 1 + np.sin(self._sinus_angles) * self._sinus_gain \
-            + np.random.uniform(-self._RND_ATTACK_STRENGTH, self._RND_ATTACK_STRENGTH, NUM_ATTACKED_LOAD_BUSES_39BUS)
-        self._sinus_angles += np.pi / 50
-        self._sinus_gain += 0.0001
-        self._do_attack()
     
     def _collect_measurements(self):
         # Freqs delayed by one step and attacks ended one step faster,
@@ -151,13 +152,23 @@ class MDLAAHandler:
 
 
     # ---Attack handling---
+    def _generate_and_apply_random_attack(self):
+        # Sinus attack for DLAA like behaviour, random attack to make Hankel matrix full rank by avoiding repetitions
+        sin_attack = np.sin(self._SINUS_ANGLES) * self._SINUS_AMPL
+        rnd_attack = np.random.uniform(-self._RND_ATTACK, self._RND_ATTACK, NUM_ATTACKED_LOADS_39BUS)
+        self._curr_attack = 1 + sin_attack + rnd_attack # Add to 1 because attack is added to nominal load
+        
+        self._SINUS_ANGLES += self._SINUS_FREQ * step_time
+        self._SINUS_AMPL += self._SINUS_AMPL_GAIN
+        self._do_attack()
+    
     def _do_attack(self):
         self._correct_attacks_beyond_bounds()
         self._update_and_log_all_time_max_min_attacks()
         self._send_attack_to_outstation()
     
     def _correct_attacks_beyond_bounds(self):
-        for i in range(NUM_ATTACKED_LOAD_BUSES_39BUS):
+        for i in range(NUM_ATTACKED_LOADS_39BUS):
             if self._curr_attack[i] > max_attack_39BUS[i]:
                 log.debug(f"Attack {i} is above the max_attack: {self._curr_attack[i]} > {max_attack_39BUS[i]}")
                 self._curr_attack[i] = max_attack_39BUS[i]
@@ -166,7 +177,7 @@ class MDLAAHandler:
                 self._curr_attack[i] = min_attack_39BUS[i] 
 
     def _send_attack_to_outstation(self):
-        for i in range(self._NUM_OF_ATTACKED_LOADS):
+        for i in range(self._NUM_ATTACKED_LOADS_MASTER1):
             self._main_to_master1.put((40, 4, i, float(self._curr_attack[i])))
         self._main_to_master2.put(self._curr_attack)
         log.debug(f"Doing DLAA: {self._curr_attack.tolist()}")
@@ -192,16 +203,9 @@ class MDLAAHandler:
             exit(0)
 
 
-    # ---Logging---
-    def _is_MDLAA_successful(self):   
-        for freq in self._curr_freqs:
-            if freq >= Omega_r_weight:
-                log.warning(f"MDLAA SUCCESSFUL: {self._curr_freqs * NOMINAL_FREQ}")
-                return True
-        return False
-    
+    # ---Logging---    
     def _update_and_log_all_time_max_min_attacks(self):
-        for i in range(NUM_ATTACKED_LOAD_BUSES_39BUS):
+        for i in range(NUM_ATTACKED_LOADS_39BUS):
             if self._curr_attack[i] > self._all_max_attack[i]:
                 self._all_max_attack[i] = self._curr_attack[i]
             elif self._curr_attack[i] < self._all_min_attack[i]:
@@ -225,11 +229,11 @@ def main():
     master1.start()
     
     master2 = Process(target=master2_process, args=(main_to_master2, step_time,
-                                                    NUM_ATTACKED_LOAD_BUSES_39BUS, NUM_LOADS_MASTER2_39BUS,))
+                                                    NUM_ATTACKED_LOADS_39BUS, NUM_LOADS_MASTER2_39BUS,))
     master2.start()
     
     osqp = Process(target=osqp_process, args=(master_to_osqp, osqp_to_master,
-                                              NUM_GEN_BUSES_39BUS, NUM_ATTACKED_LOAD_BUSES_39BUS,
+                                              NUM_GENS_39BUS, NUM_ATTACKED_LOADS_39BUS,
                                               max_attack_39BUS, min_attack_39BUS))    
     osqp.start()
     log.info("Processes started")

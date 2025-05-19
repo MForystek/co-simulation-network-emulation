@@ -14,9 +14,9 @@ log = getLogger(__name__, "logs/osqp.log")
 freq_log = getLogger("PredFreqLog", "logs/freqs.log", formatter=logging.Formatter('%(message)s'))
 
 class OSQPSolver:
-    def __init__(self, num_gen_buses, num_attacked_load_buses, max_attack, min_attack):
-        self._NUM_GEN_BUSES = num_gen_buses
-        self._NUM_ATTACKED_LOAD_BUSES = num_attacked_load_buses
+    def __init__(self, num_gens, num_attacked_loads, max_attack, min_attack):
+        self._NUM_GENS = num_gens
+        self._NUM_ATTACKED_LOADS = num_attacked_loads
         self._max_attack = max_attack
         self._min_attack = min_attack
         
@@ -39,20 +39,20 @@ class OSQPSolver:
         self._assert_Hankel_full_rank(np.vstack([HU, HY]))
 
         # Split into past/future blocks
-        self._Up = HU[:Tini*self._NUM_ATTACKED_LOAD_BUSES, :]
-        self._Uf = HU[Tini*self._NUM_ATTACKED_LOAD_BUSES:, :]
-        self._Yp = HY[:Tini*self._NUM_GEN_BUSES, :]
-        self._Yf = HY[Tini*self._NUM_GEN_BUSES:, :]
+        self._Up = HU[:Tini*self._NUM_ATTACKED_LOADS, :]
+        self._Uf = HU[Tini*self._NUM_ATTACKED_LOADS:, :]
+        self._Yp = HY[:Tini*self._NUM_GENS, :]
+        self._Yf = HY[Tini*self._NUM_GENS:, :]
         
         self._Up_sparse = scipy.sparse.csc_matrix(self._Up)
         self._Yp_sparse = scipy.sparse.csc_matrix(self._Yp)
         self._Yf_sparse = scipy.sparse.csc_matrix(self._Yf)
         self._Uf_sparse = scipy.sparse.csc_matrix(self._Uf)
         
-        Q_sparse = Q_weight * scipy.sparse.eye(Nap * self._NUM_GEN_BUSES, format='csc')
-        R_sparse = R_weight * scipy.sparse.eye(Nap * self._NUM_ATTACKED_LOAD_BUSES, format='csc')
+        Q_sparse = Q_weight * scipy.sparse.eye(Nap * self._NUM_GENS, format='csc')
+        R_sparse = R_weight * scipy.sparse.eye(Nap * self._NUM_ATTACKED_LOADS, format='csc')
         
-        Omega_r = Omega_r_weight * np.ones(Nap * self._NUM_GEN_BUSES)
+        Omega_r = Omega_r_weight * np.ones(Nap * self._NUM_GENS)
         
         # Construct OSQP parameters
         YfTxQ = self._Yf_sparse.T @ Q_sparse
@@ -165,9 +165,9 @@ class OSQPSolver:
     
     def _extract_optimal_attacks(self, g_optimal):
         log.info("OSQP Solved successfully")
-        pred_freqs = (self._Yf @ g_optimal).reshape(Nap, self._NUM_GEN_BUSES).T
+        pred_freqs = (self._Yf @ g_optimal).reshape(Nap, self._NUM_GENS).T
         freq_log.info(f"{pred_freqs[:, :Nac]}")
-        u_opt = (self._Uf @ g_optimal).reshape(Nap, self._NUM_ATTACKED_LOAD_BUSES).T
+        u_opt = (self._Uf @ g_optimal).reshape(Nap, self._NUM_ATTACKED_LOADS).T
         optimal_attacks_to_apply = u_opt[:, :Nac]
         return optimal_attacks_to_apply
        
@@ -180,8 +180,8 @@ class OSQPSolver:
         
 
 def osqp_process(main_to_osqp:Queue, osqp_to_main:Queue,
-                 num_gen_buses, num_attacked_load_buses, max_attack, min_attack):    
-    osqp_solver = OSQPSolver(num_gen_buses, num_attacked_load_buses, max_attack, min_attack)
+                 num_gens, num_attacked_loads, max_attack, min_attack):    
+    osqp_solver = OSQPSolver(num_gens, num_attacked_loads, max_attack, min_attack)
     
     # Read the first data to initialize the solver
     setup_data = main_to_osqp.get()
