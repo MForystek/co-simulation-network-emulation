@@ -46,7 +46,7 @@ class LFCHandler:
     
     
     def _reset_controller_when_no_connection(self):
-        max_disconnection_time = 2
+        max_disconnection_time = 5
         
         while(True):
             self._reset_timer()
@@ -54,7 +54,7 @@ class LFCHandler:
                 time.sleep(1)
                 self._increment_timer()
             self._reset_controller_vars()
-            _log.info(f"No connection for {max_disconnection_time}. LFC handler reset.")
+            _log.info(f"No connection for {max_disconnection_time} sec. LFC handler reset.")
  
     
     def _reset_timer(self):
@@ -79,9 +79,9 @@ class LFCHandler:
         tl_32_T05 = visitor_index_and_value[16][1]
         tl_32_T02 = visitor_index_and_value[17][1]
         
-        self._tie_lines[0] = (tl_13_T19 + tl_12_T21 - 225.10234) / 100
-        self._tie_lines[1] = (tl_21_T21 + tl_23_T02 + tl_23_T05 + 12.4674) / 100
-        self._tie_lines[2] = (tl_31_T19 + tl_32_T02 + tl_32_T05 + 211.73267) / 100
+        self._tie_lines[0] = (tl_13_T19 + tl_12_T21 - 225.21686) / 100
+        self._tie_lines[1] = (tl_21_T21 + tl_23_T02 + tl_23_T05 + 12.3572) / 100
+        self._tie_lines[2] = (tl_31_T19 + tl_32_T02 + tl_32_T05 + 211.95215) / 100
         _log.info(f"TL 1: {self._tie_lines[0]} || TL 2: {self._tie_lines[1]} || TL 3: {self._tie_lines[2]}")
     
     

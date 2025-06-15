@@ -117,10 +117,10 @@ class OSQPSolver:
         
         settings = {
             'verbose': False,
-            'eps_abs': 5e-3,
-            'eps_rel': 5e-3,
+            'eps_abs': 6e-3,
+            'eps_rel': 6e-3,
             'warm_start': True,
-            #'adaptive_rho_interval': 25
+            'adaptive_rho_interval': 25
         }
         
         self._osqp.setup(

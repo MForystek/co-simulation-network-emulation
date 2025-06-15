@@ -9,6 +9,8 @@ from cosim.dnp3.lfc import LFC_handler, UFLS_handler
 from cosim.dnp3.soe_handler import SOEHandlerAdjusted
 from cosim.dnp3.master import MasterStation
 
+_log = logging.getLogger(__name__)
+SCALING_TO_INT = 1000000
 
 class IEEE39BusSOEHandler(SOEHandlerAdjusted):
     def __init__(self, log_file_path="logs/soehandler.log", soehandler_log_level=logging.INFO, station_ref=None, *args, **kwargs):
@@ -18,7 +20,9 @@ class IEEE39BusSOEHandler(SOEHandlerAdjusted):
     
     
     def _process_incoming_data(self, info_gv, visitor_index_and_value):
-        if info_gv in [GroupVariation.Group30Var6]:            
+        if info_gv in [GroupVariation.Group30Var1]:            
+            for index, value in visitor_index_and_value:
+                visitor_index_and_value[index] = (index, value/SCALING_TO_INT)
             ACEs = self._LFC_handler.get_updated_ACEs(visitor_index_and_value)
             load_to_shed = self._UFLS_handler.get_percentage_of_load_to_shed(visitor_index_and_value)
             
@@ -30,10 +34,12 @@ class IEEE39BusSOEHandler(SOEHandlerAdjusted):
         
 def main():
     logs_file = "logs/d_r_lfc_master.log"
-    outstation_ip = "172.24.14.211"
-    port = 20000
+    outstation_ip = "192.168.0.1"
+    port = 20003
+    outstation_id = 4
+    master_id = 3
     
-    master = MasterStation(outstation_ip=outstation_ip, port=port, master_id=1, outstation_id=2)
+    master = MasterStation(outstation_ip=outstation_ip, port=port, master_id=master_id, outstation_id=outstation_id, logs_file=logs_file)
     soe_handler = IEEE39BusSOEHandler(logs_file, station_ref=master)
     master.configure_master(soe_handler, outstation_ip, port)
     

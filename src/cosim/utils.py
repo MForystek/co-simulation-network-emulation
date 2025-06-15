@@ -9,13 +9,13 @@ SRC_PATH = pathlib.Path(__file__).parent.parent.resolve()
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--lfc", required=False, action="store_true")
-    parser.add_argument("-n", "--network", required=True,
+    parser.add_argument("-n", "--network", required=False,
                         choices=["j", "json",
                                  "m", "modbus",
                                  "d", "dnp3",
                                  "c","c37.118"],
                         help="Type of the network protocol used, or simple json messages.")
-    parser.add_argument("-p", "--power", required=True,
+    parser.add_argument("-p", "--power", required=False,
                         choices=["pp", "pandapower",
                                  "r", "rtds"],
                         help="Type of the power simulator used.")

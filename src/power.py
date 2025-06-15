@@ -20,6 +20,6 @@ elif args.network in ["d", "dnp3"]:
     dnp3_main()
 # C37.118
 elif args.network in ["c", "c37.118"]:
-    pass
+    print("C37.118 power simulation is not implemented yet.")
 else:
     raise ValueError(f"Incorrect value of argument 'type': {args.network}")
