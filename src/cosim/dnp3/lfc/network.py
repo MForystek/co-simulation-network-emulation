@@ -9,16 +9,18 @@ from cosim.utils import SRC_PATH
 
 def main(args):
     delay = "0ms"
-    bandwidth = 1.0
+    loss = 0        # percentage
+    bandwidth = 1.0 # in Mbps
     jitter = "0ms"
     
     if hasattr(args, 'delay'):
         delay = args.delay
+    if hasattr(args, 'loss'):
+        loss = args.loss
     if hasattr(args, 'bandwidth'):
         bandwidth = args.bandwidth
     if hasattr(args, 'jitter'):
         jitter = args.jitter
-
 
     setLogLevel('info')
 
@@ -46,15 +48,19 @@ def main(args):
     s1 = net.addSwitch("s1", cls=OVSSwitch, failMode="standalone")
     
     # Links
-    net.addLink(master_forwarder, s1, cls=TCLink, delay=delay, bw=bandwidth, jitter=jitter)
+    net.addLink(master_forwarder, s1, cls=TCLink, delay=delay, bw=bandwidth, jitter=jitter, loss=loss)
     net.addLink(master, s1, cls=TCLink)
-    
-    net.addLink(attacker, s1, cls=TCLink)
     
     # Run dnp3 scripts
     info(master_forwarder.cmd("python3 -m cosim.dnp3.lfc.LFC_forwarder &"))
     info(master.cmd("python3 -m cosim.dnp3.lfc.LFC_master &"))
-    #info(attacker.cmd("python3 -m cosim.dnp3.lfc.mdlaa.procs_MDLAA_ctrl 39bus &"))
+    
+    if args.attack == "slaa":
+        info(attacker.cmd("python3 -m cosim.dnp3.lfc.SLAA_controller &"))
+    elif args.attack == "dlaa":
+        info(attacker.cmd("python3 -m cosim.dnp3.lfc.DLAA_controller &"))
+    elif args.attack == "mdlaa":
+        info(attacker.cmd("python3 -m cosim.dnp3.lfc.mdlaa.procs_MDLAA_ctrl 39bus &"))
     
     net.start()
     CLI(net)
